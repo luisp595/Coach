@@ -170,6 +170,24 @@ const PREHAB = [
   { id: "p5", name: "B\xFAlgara o step-down", sets: "3 \xD7 8" },
   { id: "p6", name: "Puente gl\xFAteo unipodal", sets: "3 \xD7 10" }
 ];
+const MODELS = [
+  { id: "claude-sonnet-5", name: "Sonnet 5", desc: "Equilibrado. Recomendado.", cost: "~1,1\xA2 por consulta" },
+  { id: "claude-haiku-4-5-20251001", name: "Haiku 4.5", desc: "R\xE1pido y barato. Menos profundo.", cost: "~0,5\xA2 por consulta" },
+  { id: "claude-opus-5", name: "Opus 5", desc: "El m\xE1s capaz. Caro.", cost: "~2,8\xA2 por consulta" }
+];
+function getModel() {
+  try {
+    return localStorage.getItem("coach:model") || "claude-sonnet-5";
+  } catch {
+    return "claude-sonnet-5";
+  }
+}
+function setModel(m) {
+  try {
+    localStorage.setItem("coach:model", m);
+  } catch {
+  }
+}
 const DEFAULT_PROFILE = { name: "Luis", accent: "purple", createdAt: "2026-09-13" };
 const TIERS = {
   bronce: { label: "Bronce", color: "#B07A3C", bg: "#FAF1E6" },
@@ -1373,7 +1391,7 @@ CHECK-IN (${latest.date}): energ\xEDa ${latest.energy}/10, sue\xF1o ${latest.sle
     let reply = null, lastErr = null, usedFallback = false;
     for (let i = 0; i < attempts.length; i++) {
       try {
-        reply = await callApi({ model: "claude-sonnet-4-6", ...attempts[i] });
+        reply = await callApi({ model: getModel(), ...attempts[i] });
         usedFallback = i > 0;
         break;
       } catch (e) {
@@ -1417,9 +1435,9 @@ CHECK-IN (${latest.date}): energ\xEDa ${latest.energy}/10, sue\xF1o ${latest.sle
     setLoading(true);
     const results = [];
     const probes = [
-      { name: "M\xEDnimo (10 tokens)", body: { model: "claude-sonnet-4-6", max_tokens: 10, messages: [{ role: "user", content: "di ok" }] } },
-      { name: "Con system prompt", body: { model: "claude-sonnet-4-6", max_tokens: 100, system: buildSystemPrompt(profile), messages: [{ role: "user", content: "di ok" }] } },
-      { name: "Prompt + contexto", body: { model: "claude-sonnet-4-6", max_tokens: 300, system: buildSystemPrompt(profile) + "\n\n" + buildContext(), messages: [{ role: "user", content: "di ok" }] } }
+      { name: "M\xEDnimo (10 tokens)", body: { model: getModel(), max_tokens: 10, messages: [{ role: "user", content: "di ok" }] } },
+      { name: "Con system prompt", body: { model: getModel(), max_tokens: 100, system: buildSystemPrompt(profile), messages: [{ role: "user", content: "di ok" }] } },
+      { name: "Prompt + contexto", body: { model: getModel(), max_tokens: 300, system: buildSystemPrompt(profile) + "\n\n" + buildContext(), messages: [{ role: "user", content: "di ok" }] } }
     ];
     for (const p of probes) {
       const size = JSON.stringify(p.body).length;
@@ -1932,12 +1950,14 @@ function ProfileModal({ C, profile, sessions, achievements, onSave, onClose }) {
 }
 function ApiKeyCard({ C }) {
   const [key, setKey] = useState(getApiKey());
+  const [modelo, setModelo] = useState(getModel());
   const [visible, setVisible] = useState(false);
   const [saved, setSaved] = useState(false);
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState(null);
   const guardar = () => {
     setApiKey(key);
+    setModel(modelo);
     setSaved(true);
     setResult(null);
     setTimeout(() => setSaved(false), 1800);
@@ -1954,10 +1974,10 @@ function ApiKeyCard({ C }) {
           "anthropic-version": "2023-06-01",
           "anthropic-dangerous-direct-browser-access": "true"
         },
-        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 10, messages: [{ role: "user", content: "di ok" }] })
+        body: JSON.stringify({ model: modelo, max_tokens: 10, messages: [{ role: "user", content: "di ok" }] })
       });
       const txt = await r.text();
-      if (r.ok) setResult({ ok: true, msg: "Conexi\xF3n correcta. El coach ya funciona." });
+      if (r.ok) setResult({ ok: true, msg: `Conexi\xF3n correcta con ${MODELS.find((m) => m.id === modelo)?.name || modelo}.` });
       else {
         let detalle = `HTTP ${r.status}`;
         try {
@@ -1986,7 +2006,21 @@ function ApiKeyCard({ C }) {
       spellCheck: false,
       style: { width: "100%", padding: "11px 13px", background: C.card, border: `1px solid ${C.border}`, borderRadius: "8px", color: C.ink, fontSize: "13px", fontFamily: FONT_MONO, boxSizing: "border-box", outline: "none" }
     }
-  ), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", marginTop: "10px" } }, /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: guardar, style: { flex: 2 } }, saved ? "Guardada \u2713" : "Guardar"), /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: probar, disabled: !key.trim() || testing, style: { flex: 1 } }, testing ? "\u2026" : "Probar")), result && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "10px", padding: "10px 12px", borderRadius: "8px", background: result.ok ? C.successBg : C.dangerBg, border: `1px solid ${result.ok ? C.success : C.danger}` } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: result.ok ? C.success : C.danger, fontWeight: 600, lineHeight: 1.45, fontFamily: result.ok ? FONT_BODY : FONT_MONO } }, result.msg)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "12px", lineHeight: 1.5 } }, "Consigue una en console.anthropic.com \u2192 API Keys. Crea una exclusiva para esta app con l\xEDmite de gasto, as\xED puedes revocarla sin afectar nada m\xE1s."));
+  ), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "16px" } }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: "8px" } }, "Modelo"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "6px" } }, MODELS.map((m) => {
+    const activo = modelo === m.id;
+    return /* @__PURE__ */ React.createElement("button", { key: m.id, onClick: () => setModelo(m.id), style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      padding: "11px 13px",
+      textAlign: "left",
+      background: activo ? C.accentBg : C.surface,
+      border: `1px solid ${activo ? C.accent : "transparent"}`,
+      borderRadius: "9px",
+      cursor: "pointer",
+      fontFamily: FONT_BODY
+    } }, /* @__PURE__ */ React.createElement("div", { style: { width: "15px", height: "15px", flexShrink: 0, borderRadius: "50%", border: `2px solid ${activo ? C.accent : C.borderStrong}`, background: activo ? C.accent : "transparent", boxShadow: activo ? `inset 0 0 0 2.5px #fff` : "none" } }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: 600, color: activo ? C.accentText : C.ink } }, m.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: activo ? C.accentText : C.inkMuted, marginTop: "2px", opacity: 0.9 } }, m.desc, " \xB7 ", m.cost)));
+  }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", marginTop: "14px" } }, /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: guardar, style: { flex: 2 } }, saved ? "Guardado \u2713" : "Guardar"), /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: probar, disabled: !key.trim() || testing, style: { flex: 1 } }, testing ? "\u2026" : "Probar")), result && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "10px", padding: "10px 12px", borderRadius: "8px", background: result.ok ? C.successBg : C.dangerBg, border: `1px solid ${result.ok ? C.success : C.danger}` } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: result.ok ? C.success : C.danger, fontWeight: 600, lineHeight: 1.45, fontFamily: result.ok ? FONT_BODY : FONT_MONO } }, result.msg)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "12px", lineHeight: 1.5 } }, "Consigue una en console.anthropic.com \u2192 API Keys. Crea una exclusiva para esta app con l\xEDmite de gasto, as\xED puedes revocarla sin afectar nada m\xE1s."));
 }
 function FormField({ label, C, children }) {
   return /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "14px" } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: "11px", color: C.inkMuted, marginBottom: "6px", letterSpacing: "0.08em", fontWeight: 600, textTransform: "uppercase" } }, label), children);
@@ -2040,7 +2074,6 @@ function TabBar({ C, tab, setTab }) {
     } }, t.label, active && /* @__PURE__ */ React.createElement("span", { style: { position: "absolute", top: "-1px", left: "30%", right: "30%", height: "2px", background: C.accent } }));
   }));
 }
-
 
   try {
     ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
