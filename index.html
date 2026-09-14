@@ -1262,6 +1262,10 @@ OBJETIVOS ACTIVOS:
     if (latest) ctx += `
 CHECK-IN (${latest.date}): energ\xEDa ${latest.energy}/10, sue\xF1o ${latest.sleep}/10, tibia D ${latest.painTibia}/10, tobillo I ${latest.painAnkle}/10${latest.notes ? ` \u2014 ${latest.notes}` : ""}
 `;
+    const prehabHoy = (exercisesDone[todayISO()] || []).length;
+    ctx += `
+PREHAB HOY: ${prehabHoy}/${PREHAB.length} ejercicios completados
+`;
     const last7 = sessions.filter((s) => daysAgo(s.date) <= 7);
     if (last7.length) {
       ctx += `
@@ -1274,8 +1278,24 @@ CHECK-IN (${latest.date}): energ\xEDa ${latest.energy}/10, sue\xF1o ${latest.sle
         if (s.elevation) ctx += ` \xB7 ${s.elevation} m+`;
         if (s.duration) ctx += ` \xB7 ${s.duration} min`;
         if (s.pace) ctx += ` \xB7 ${s.pace}/km`;
+        if (s.surface) ctx += ` \xB7 ${s.surface}`;
         if (s.gymTemplate) ctx += ` \xB7 ${GYM_TEMPLATES[s.gymTemplate]?.name}`;
+        if (s.symptoms && s.symptoms !== "ninguno") ctx += ` \xB7 s\xEDntomas: ${s.symptoms}`;
         ctx += "\n";
+        if (s.exerciseLog) {
+          const todos = Object.values(GYM_TEMPLATES).flatMap((t2) => t2.exercises);
+          Object.entries(s.exerciseLog).forEach(([exId, sets]) => {
+            const def = todos.find((e) => e.id === exId);
+            const detalle = sets.map((x) => `${x.reps || "?"}\xD7${x.weight || 0}kg`).join(", ");
+            ctx += `    \xB7 ${def?.name || exId}: ${detalle}
+`;
+          });
+          const vol = Object.values(s.exerciseLog).flat().reduce((a, x) => a + (x.reps || 0) * (x.weight || 0), 0);
+          if (vol) ctx += `    \xB7 volumen total: ${Math.round(vol)} kg
+`;
+        }
+        if (s.notes) ctx += `    \xB7 NOTA: ${s.notes}
+`;
       });
     }
     return ctx;
