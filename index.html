@@ -136,6 +136,78 @@ const GYM_TEMPLATES = {
     ]
   }
 };
+const PLYO_LEVELS = [
+  {
+    id: "plyo_1",
+    nivel: 1,
+    name: "Pliometr\xEDa \xB7 Base",
+    shortName: "PLIO 1",
+    objetivo: "Tolerancia al impacto y rigidez del tobillo. Contacto corto, sin buscar altura.",
+    exercises: [
+      { id: "pogo-bi", name: "Pogo jumps bipodales", sets: 2, reps: "10", rest: "60 s", contacts: 20, hint: "Solo tobillo, rodilla casi recta. Contacto m\xEDnimo con el suelo." },
+      { id: "cmj-suave", name: "Salto vertical con ca\xEDda controlada", sets: 2, reps: "5", rest: "90 s", contacts: 10, hint: "Aterriza suave, amortiguando con cadera y rodilla." },
+      { id: "skip-bajo", name: "Skipping bajo en el sitio", sets: 2, reps: "5 c/pierna", rest: "60 s", contacts: 10, hint: "Frecuencia alta, amplitud baja." }
+    ]
+  },
+  {
+    id: "plyo_2",
+    nivel: 2,
+    name: "Pliometr\xEDa \xB7 Intermedia",
+    shortName: "PLIO 2",
+    objetivo: "Introducir horizontal y unipodal. Aqu\xED empieza la transferencia real a la zancada.",
+    exercises: [
+      { id: "pogo-bi2", name: "Pogo jumps bipodales", sets: 3, reps: "12", rest: "60 s", contacts: 36, hint: "M\xE1s r\xE1pido que en nivel 1, no m\xE1s alto." },
+      { id: "cmj-max", name: "Salto con contramovimiento m\xE1ximo", sets: 3, reps: "5", rest: "2 min", contacts: 15, hint: "M\xE1xima altura, recuperaci\xF3n completa entre series." },
+      { id: "bound-corto", name: "Saltos alternos horizontales", sets: 2, reps: "8", rest: "90 s", contacts: 16, hint: "Avanza, no subas. Busca distancia por zancada." },
+      { id: "pogo-uni", name: "Salto unipodal en el sitio", sets: 2, reps: "5 c/pierna", rest: "90 s", contacts: 20, hint: "Compara lado izquierdo y derecho. Si hay asimetr\xEDa notoria, av\xEDsale al coach." }
+    ]
+  },
+  {
+    id: "plyo_3",
+    nivel: 3,
+    name: "Pliometr\xEDa \xB7 Avanzada",
+    shortName: "PLIO 3",
+    objetivo: "Alta intensidad reactiva y multidireccional. Transferencia a f\xFAtbol y a ritmo de 10K.",
+    exercises: [
+      { id: "drop-jump", name: "Drop jump desde 20\u201330 cm", sets: 4, reps: "5", rest: "2 min", contacts: 20, hint: "Caj\xF3n bajo. El objetivo es el tiempo de contacto, no la altura del rebote." },
+      { id: "bounding", name: "Bounding horizontal", sets: 3, reps: "10", rest: "2 min", contacts: 30, hint: "Sobre pasto si puedes, nunca en asfalto." },
+      { id: "hop-lateral", name: "Saltos unipodales laterales", sets: 3, reps: "8 c/lado", rest: "90 s", contacts: 48, hint: "Clave para los cambios de direcci\xF3n del f\xFAtbol." },
+      { id: "fast-feet", name: "Pies r\xE1pidos", sets: 3, reps: "8", rest: "60 s", contacts: 24, hint: "Frecuencia m\xE1xima, contacto m\xEDnimo." }
+    ]
+  }
+];
+function plyoStatus(sessions, checkins) {
+  const hechas = sessions.filter((s) => s.type === "gym" && String(s.gymTemplate || "").startsWith("plyo_"));
+  const porNivel = { plyo_1: 0, plyo_2: 0, plyo_3: 0 };
+  hechas.forEach((s) => {
+    if (porNivel[s.gymTemplate] !== void 0) porNivel[s.gymTemplate]++;
+  });
+  let nivel = 1;
+  if (porNivel.plyo_2 > 0 || porNivel.plyo_3 > 0) nivel = porNivel.plyo_3 > 0 ? 3 : 2;
+  const dolor14 = checkins.filter((c) => daysAgo(c.date) <= 14).some((c) => (c.painTibia || 0) >= 2);
+  const sintomas14 = hechas.filter((s) => daysAgo(s.date) <= 14).some((s) => s.symptoms && s.symptoms !== "ninguno");
+  const enNivel = porNivel["plyo_" + nivel] || 0;
+  const puedeSubir = nivel < 3 && enNivel >= 6 && !dolor14 && !sintomas14;
+  const debeBajar = dolor14 || sintomas14;
+  const ultima = hechas[0] || null;
+  const diasDesde = ultima ? daysAgo(ultima.date) : null;
+  const estaSemana = hechas.filter((s) => daysAgo(s.date) <= 7).length;
+  const contactos7 = hechas.filter((s) => daysAgo(s.date) <= 7).reduce((a, s) => a + (PLYO_LEVELS.find((l) => l.id === s.gymTemplate)?.contactos || 0), 0);
+  return {
+    nivel,
+    template: PLYO_LEVELS[nivel - 1],
+    enNivel,
+    puedeSubir,
+    debeBajar,
+    total: hechas.length,
+    ultima,
+    diasDesde,
+    estaSemana,
+    contactos7,
+    dolor14,
+    sintomas14
+  };
+}
 const WEEKLY_TEMPLATE = {
   0: { type: "run-long", label: "Long run", hint: "Pilar de la marat\xF3n. Ritmo conversacional." },
   1: { type: "rest", label: "Descanso o movilidad", hint: "Prehab + estiramientos." },
@@ -145,6 +217,10 @@ const WEEKLY_TEMPLATE = {
   5: { type: "rest", label: "Descanso o trote suave", hint: "20\u201330 min z2 opcional." },
   6: { type: "gym", gymId: "lower_athletic", label: "Gimnasio \xB7 Lower Atl\xE9tico", hint: "" }
 };
+PLYO_LEVELS.forEach((l) => {
+  l.contactos = l.exercises.reduce((a, e) => a + e.contacts, 0);
+  GYM_TEMPLATES[l.id] = l;
+});
 const DAY_SHORT = ["DOM", "LUN", "MAR", "MI\xC9", "JUE", "VIE", "S\xC1B"];
 const DAY_FULL = ["domingo", "lunes", "martes", "mi\xE9rcoles", "jueves", "viernes", "s\xE1bado"];
 const DEFAULT_GOALS = [
@@ -189,6 +265,85 @@ function setModel(m) {
   }
 }
 const DEFAULT_PROFILE = { name: "Luis", accent: "purple", createdAt: "2026-09-13" };
+function sessionLoad(s) {
+  const km = parseFloat(s.distance) || 0;
+  const min = parseFloat(s.duration) || 0;
+  if (RUN_IDS.includes(s.type)) return km || min / 6;
+  if (s.type === "trekking") return km * 0.5 + (parseFloat(s.elevation) || 0) / 200;
+  if (s.type.startsWith("futbol")) return min / 6;
+  return 0;
+}
+function loadBetween(sessions, desdeDias, hastaDias) {
+  return sessions.filter((s) => {
+    const d = daysAgo(s.date);
+    return d >= hastaDias && d < desdeDias;
+  }).reduce((a, s) => a + sessionLoad(s), 0);
+}
+function calcACWR(sessions) {
+  const primera = sessions.length ? sessions[sessions.length - 1].date : null;
+  const diasDeDatos = primera ? daysAgo(primera) : 0;
+  const aguda = loadBetween(sessions, 7, 0);
+  const total28 = loadBetween(sessions, 28, 0);
+  const cronica = total28 / 4;
+  if (diasDeDatos < 21 || cronica < 3) {
+    return { listo: false, aguda, cronica, diasDeDatos, faltan: Math.max(0, 21 - diasDeDatos) };
+  }
+  const ratio = aguda / cronica;
+  let zona, color, texto;
+  if (ratio < 0.8) {
+    zona = "baja";
+    texto = "Carga por debajo de tu base. Bien para recuperar, riesgoso si se prolonga.";
+  } else if (ratio <= 1.3) {
+    zona = "optima";
+    texto = "Zona \xF3ptima: progresas sin saltos bruscos.";
+  } else if (ratio <= 1.5) {
+    zona = "precaucion";
+    texto = "Subiste bastante respecto a tu base. Vigila molestias.";
+  } else {
+    zona = "alta";
+    texto = "Salto de carga grande. Considera bajar volumen esta semana.";
+  }
+  return { listo: true, ratio, aguda, cronica, zona, texto, diasDeDatos };
+}
+function marathonRoadmap(sessions, goal) {
+  if (!goal || !goal.targetDate) return null;
+  const semanasRestantes = Math.max(0, Math.ceil(daysUntil(goal.targetDate) / 7));
+  const objetivo = goal.weeklyKmTarget || 50;
+  const base4 = loadBetween(sessions.filter((s) => RUN_IDS.includes(s.type)), 28, 0) / 4;
+  const base = Math.max(12, Math.round(base4 * 10) / 10);
+  const semTaper = 3, semSostenida = 2;
+  const semConstruccionTotal = Math.max(1, semanasRestantes - semTaper - semSostenida);
+  const semDescarga = Math.floor(semConstruccionTotal / 4);
+  const semQueSuben = Math.max(1, semConstruccionTotal - semDescarga);
+  const necesario = base > 0 ? Math.pow(objetivo / base, 1 / semQueSuben) : 1.1;
+  const factorCrecimiento = Math.min(1.1, Math.max(1, necesario));
+  const semanas = [];
+  let actual = base;
+  let pico = base;
+  for (let i = 0; i < Math.min(semanasRestantes, 70); i++) {
+    const faltan = semanasRestantes - i;
+    let km, fase;
+    if (faltan <= semTaper) {
+      const factor = faltan === 3 ? 0.65 : faltan === 2 ? 0.45 : 0.3;
+      km = pico * factor;
+      fase = "taper";
+    } else if (faltan <= semTaper + semSostenida) {
+      km = pico;
+      fase = "pico";
+    } else if (i > 0 && (i + 1) % 4 === 0) {
+      km = actual * 0.75;
+      fase = "descarga";
+    } else {
+      km = Math.min(objetivo, actual * factorCrecimiento);
+      fase = "construcci\xF3n";
+      actual = km;
+      pico = Math.max(pico, km);
+    }
+    semanas.push({ idx: i, monday: addDays(weekStart(todayISO()), i * 7), km: Math.round(km * 10) / 10, fase });
+  }
+  const estaSemana = semanas[0] || null;
+  return { base, objetivo, semanasRestantes, semanas, estaSemana, pico: Math.round(pico * 10) / 10, crecimiento: Math.round((factorCrecimiento - 1) * 1e3) / 10 };
+}
 const TIERS = {
   bronce: { label: "Bronce", color: "#B07A3C", bg: "#FAF1E6" },
   plata: { label: "Plata", color: "#7A8390", bg: "#F1F3F5" },
@@ -292,9 +447,26 @@ function computeAchievements(state) {
 function buildSystemPrompt(profile) {
   return `Eres el coach personal de ${profile.name}, deportista amateur en Santiago de Chile: corredor (asfalto, trail, cinta), f\xFAtbol en pasto sint\xE9tico y trekking en la cordillera central. Nivel gimnasio intermedio, 1+ a\xF1o regular, gimnasio completo. Ritmos ~6:20\u20136:30/km, 10K PR 53:00 (objetivo sub-45). Base de trekking hasta 30 km / 2.400 m+.
 
-Historial m\xE9dico (contexto, no foco): placa en tobillo izquierdo, periostitis tibial derecha recuperada.
+ESTADO M\xC9DICO (septiembre 2026): su m\xE9dico lo evalu\xF3 con ex\xE1menes y lo dio de ALTA COMPLETA \u2014 apto para cualquier deporte sin restricciones. Indicaci\xF3n: retomar de forma algo m\xE1s ligera de lo habitual durante los primeros d\xEDas, y luego carga normal.
+Antecedentes ya resueltos, solo como contexto: placa en tobillo izquierdo, periostitis tibial derecha recuperada. NO los trates como limitaci\xF3n activa ni le recuerdes la lesi\xF3n sin motivo: est\xE1 dado de alta. Sigue el monitoreo normal de s\xEDntomas que har\xEDas con cualquier atleta, sin sobreproteger ni recortar el plan por precauci\xF3n.
 
-TEMPLATE SEMANAL: Lun descanso/movilidad \xB7 Mar Gym Upper \xB7 Mi\xE9 running de calidad \xB7 Jue Gym Lower Fuerza \xB7 Vie descanso o trote z2 \xB7 S\xE1b Gym Lower Atl\xE9tico \xB7 Dom long run.
+PLAN SEMANAL ADAPTATIVO (no es un calendario fijo): la semana tiene un cupo de 5 sesiones \u2014 long run, sesi\xF3n de running de calidad, y tres de gimnasio (Upper, Lower Fuerza, Lower Atl\xE9tico). La app reparte lo que falta entre los d\xEDas que quedan seg\xFAn lo que ${profile.name} ya hizo. Si adelanta o mueve una sesi\xF3n, el resto se reordena solo.
+
+REGLAS DE REPARTO: no repetir grupo muscular ni impacto en d\xEDas consecutivos; el long run va preferentemente domingo; si se acumulan pendientes se prioriza long run y gimnasio por sobre la sesi\xF3n de calidad. Nunca le digas "hoy toca X porque es martes": el d\xEDa no manda, manda lo que falta y lo que hizo ayer.
+
+PLIOMETR\xCDA \u2014 eres preciso con esto:
+La pliometr\xEDa mejora la econom\xEDa de carrera, con efecto grande cuando se combina con entrenamiento de fuerza, y mayores mejoras con m\xE1s de 15 sesiones totales, m\xE1s de 7 semanas y 2+ d\xEDas por semana. La app tiene 3 niveles progresivos por contactos de pie: nivel 1 = 40 contactos, nivel 2 = 85, nivel 3 = 120.
+
+Reglas de progresi\xF3n (buenas pr\xE1cticas, no restricciones por lesi\xF3n):
+- Sin dolor durante ni despu\xE9s. Si aparece dolor tibial, se suspende esa sesi\xF3n \u2014 criterio est\xE1ndar con impacto explosivo.
+- Progresar por velocidad, altura, distancia, carga o direcci\xF3n, no sumando saltos.
+- 48 h entre sesiones pliom\xE9tricas. No ponerlas pegadas a la sesi\xF3n de calidad ni al long run.
+- Calentar antes. Bounding sobre pasto, no en asfalto.
+- El s\xF3leo es clave para tolerar carga tibial: mant\xE9n su trabajo exc\xE9ntrico y de resistencia.
+
+Cuando recomiendes ejercicios, s\xE9 espec\xEDfico: nombre, series, repeticiones, descanso, y qu\xE9 debe sentir o vigilar. Nada de "haz pliometr\xEDa".
+
+SOBRECARGA PROGRESIVA: si complet\xF3 el tope del rango de repeticiones en todas las series de un ejercicio, la app sugiere subir la carga (2,5 kg en compuestos, 1 kg en accesorios). Refuerza eso cuando revises sus registros.
 
 ADAPTACI\xD3N POR EVENTOS: el d\xEDa del evento reemplaza la sesi\xF3n; 1 d\xEDa antes descarga; 2\u20133 d\xEDas antes baja carga de piernas si el evento las involucra.
 
@@ -486,21 +658,9 @@ function weekStart(iso) {
   const dow = d.getDay();
   return addDays(iso, dow === 0 ? -6 : -(dow - 1));
 }
-const PLANNED_PER_WEEK = Object.values(WEEKLY_TEMPLATE).filter((t) => t.type !== "rest").length;
 function weekCompleted(sessions, events, monday) {
-  const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
-  const doneDates = new Set(sessions.map((s) => s.date));
-  let required = 0, met = 0;
-  days.forEach((date) => {
-    const plan = getTodayPlan(events, date);
-    const isRest = plan.type === "default" && plan.training.type === "rest";
-    const isTaper = plan.type === "taper";
-    if (isRest || isTaper) return;
-    required++;
-    if (doneDates.has(date)) met++;
-  });
-  if (required === 0) return true;
-  return met / required >= 0.8;
+  const { done } = weekActuals(sessions, monday);
+  return Object.keys(done).length / WEEK_QUOTA.length >= 0.8;
 }
 function calcStreak(sessions, events) {
   if (!sessions.length) return 0;
@@ -509,8 +669,8 @@ function calcStreak(sessions, events) {
   if (!weekCompleted(sessions, events, monday)) monday = addDays(monday, -7);
   let guard = 0;
   while (weekCompleted(sessions, events, monday) && guard < 104) {
-    const hasAny = Array.from({ length: 7 }, (_, i) => addDays(monday, i)).some((d) => sessions.some((s) => s.date === d));
-    if (!hasAny) break;
+    const hayAlgo = Array.from({ length: 7 }, (_, i) => addDays(monday, i)).some((d) => sessions.some((x) => x.date === d));
+    if (!hayAlgo) break;
     streak++;
     monday = addDays(monday, -7);
     guard++;
@@ -519,34 +679,141 @@ function calcStreak(sessions, events) {
 }
 function weekProgress(sessions, events) {
   const monday = weekStart(todayISO());
-  const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
-  const doneDates = new Set(sessions.map((s) => s.date));
-  let required = 0, met = 0;
-  days.forEach((date) => {
-    const plan = getTodayPlan(events, date);
-    if (plan.type === "default" && plan.training.type === "rest") return;
-    if (plan.type === "taper") return;
-    required++;
-    if (doneDates.has(date)) met++;
-  });
-  return { required, met, pct: required ? Math.round(met / required * 100) : 0 };
+  const { done } = weekActuals(sessions, monday);
+  const met = Object.keys(done).length;
+  const required = WEEK_QUOTA.length;
+  return { required, met, pct: Math.round(met / required * 100), done };
 }
-function getTodayPlan(events, dateISO) {
-  const dow = dowOf(dateISO);
-  const baseTemplate = WEEKLY_TEMPLATE[dow];
-  const todayEvent = events.find((e) => e.date === dateISO && !e.completed);
-  if (todayEvent) return { type: "event", event: todayEvent, base: baseTemplate };
-  const bigTypes = ["trek", "race", "match"];
-  for (const e of events) {
-    if (e.completed) continue;
-    const d = daysUntil(e.date);
-    if (d == null || d <= 0) continue;
-    const taperDays = EVENT_TYPES[e.type]?.taper || 0;
-    if (bigTypes.includes(e.type) && d <= taperDays) {
-      return { type: "taper", event: e, daysUntil: d, base: baseTemplate };
+const WEEK_QUOTA = [
+  { id: "run-long", kind: "run-long", label: "Long run", group: "impact", hint: "Pilar de la marat\xF3n. Ritmo conversacional." },
+  { id: "gym-upper", kind: "gym", gymId: "upper", label: "Gimnasio \xB7 Upper", group: "upper", hint: "" },
+  { id: "gym-lower_strength", kind: "gym", gymId: "lower_strength", label: "Gimnasio \xB7 Lower Fuerza", group: "lower", hint: "" },
+  { id: "run-quality", kind: "run-quality", label: "Running \xB7 Calidad", group: "impact", hint: "Tempo, series o fartlek." },
+  { id: "gym-lower_athletic", kind: "gym", gymId: "lower_athletic", label: "Gimnasio \xB7 Lower Atl\xE9tico", group: "lower", hint: "" }
+];
+const GYM_GROUP = { upper: "upper", lower_strength: "lower", lower_athletic: "lower" };
+function dayScore(item, dow) {
+  if (item.kind === "run-long") return dow === 0 ? 5 : dow === 6 ? 4 : 1;
+  if (item.kind === "run-quality") return dow === 3 ? 4 : dow === 2 || dow === 4 ? 3 : 2;
+  if (item.gymId === "upper") return 3;
+  if (item.gymId === "lower_strength") return 3;
+  return 2.5;
+}
+function weekActuals(sessions, monday) {
+  const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const done = {};
+  const groups = {};
+  days.forEach((d) => {
+    groups[d] = [];
+  });
+  days.forEach((d) => {
+    sessions.filter((x) => x.date === d).forEach((sx) => {
+      if (sx.type === "gym" && sx.gymTemplate) {
+        const qid = "gym-" + sx.gymTemplate;
+        if (!done[qid]) done[qid] = d;
+        groups[d].push(GYM_GROUP[sx.gymTemplate] || "otro");
+      } else if (RUN_IDS.includes(sx.type)) {
+        const km = parseFloat(sx.distance) || 0;
+        if (km >= 12 && !done["run-long"]) done["run-long"] = d;
+        else if (km >= 5 && !done["run-quality"]) done["run-quality"] = d;
+        groups[d].push("impact");
+      } else if (sx.type.startsWith("futbol")) {
+        groups[d].push("impact");
+      } else if (sx.type === "trekking") {
+        groups[d].push("lower");
+      }
+    });
+  });
+  return { days, done, groups };
+}
+function planWeek(sessions, events, monday, hoy) {
+  const { days, done, groups } = weekActuals(sessions, monday);
+  const asignado = {};
+  const gruposDia = { ...groups };
+  const eventoDe = {};
+  days.forEach((d) => {
+    const ev = events.find((e) => e.date === d && !e.completed);
+    if (ev) {
+      eventoDe[d] = ev;
+      asignado[d] = { type: "event", event: ev };
+      gruposDia[d] = [...gruposDia[d] || [], "impact"];
     }
+  });
+  days.forEach((d) => {
+    if (asignado[d]) return;
+    for (const e of events) {
+      if (e.completed || !["trek", "race", "match"].includes(e.type)) continue;
+      const falta = Math.round((/* @__PURE__ */ new Date(e.date + "T12:00:00") - /* @__PURE__ */ new Date(d + "T12:00:00")) / 864e5);
+      const taper = EVENT_TYPES[e.type]?.taper || 0;
+      if (falta > 0 && falta <= taper) {
+        asignado[d] = { type: "taper", event: e, daysUntil: falta };
+        break;
+      }
+    }
+  });
+  const pendientes = WEEK_QUOTA.filter((q) => !done[q.id]);
+  const futuros = days.filter((d) => d >= hoy && !asignado[d]);
+  const puede = (item, d, idx) => {
+    const prev = idx > 0 ? gruposDia[days[days.indexOf(d) - 1]] || [] : [];
+    if (item.group === "impact" && prev.includes("impact")) return false;
+    if (item.group === "upper" && prev.includes("upper")) return false;
+    if (item.group === "lower" && prev.includes("lower")) return false;
+    return true;
+  };
+  const restantes = [...pendientes];
+  futuros.forEach((d) => {
+    if (restantes.length === 0) return;
+    const dow = dowOf(d);
+    const diasQueQuedan = futuros.filter((x) => x >= d).length;
+    const apretado = restantes.length >= diasQueQuedan;
+    const viables = restantes.filter((item) => puede(item, d, days.indexOf(d))).map((item) => {
+      let sc = dayScore(item, dow);
+      if (item.kind === "run-long" && dow !== 0 && dow !== 6 && !apretado) sc = 0;
+      if (item.kind === "run-long" && dow === 6 && !apretado) {
+        const domingo = days[6];
+        const domingoLibre = !asignado[domingo] && domingo >= hoy;
+        if (domingoLibre) sc = 0;
+      }
+      return { item, sc };
+    }).filter((x) => x.sc > 0).sort((a, b) => b.sc - a.sc);
+    if (viables.length === 0) return;
+    const elegido = viables[0].item;
+    asignado[d] = { type: "default", training: { type: elegido.kind, gymId: elegido.gymId, label: elegido.label, hint: elegido.hint }, quotaId: elegido.id };
+    gruposDia[d] = [...gruposDia[d] || [], elegido.group];
+    restantes.splice(restantes.indexOf(elegido), 1);
+  });
+  days.forEach((d) => {
+    if (asignado[d]) return;
+    const hizoAlgo = sessions.some((x) => x.date === d);
+    asignado[d] = { type: "default", training: { type: "rest", label: hizoAlgo ? "Ya entrenaste" : "Descanso o movilidad", hint: "Prehab + estiramientos." } };
+  });
+  return { asignado, done, pendientes, restantes, days, porHacer: pendientes.filter((q) => !done[q.id]) };
+}
+function getTodayPlan(sessions, events, dateISO) {
+  const monday = weekStart(dateISO);
+  const { asignado, done, porHacer } = planWeek(sessions, events, monday, todayISO());
+  const plan = asignado[dateISO] || { type: "default", training: { type: "rest", label: "Descanso", hint: "" } };
+  if (plan.type === "default" && plan.training.type !== "rest") {
+    const ayer = addDays(dateISO, -1);
+    const gruposAyer = [];
+    sessions.filter((x) => x.date === ayer).forEach((sx) => {
+      if (sx.type === "gym" && sx.gymTemplate) gruposAyer.push(GYM_GROUP[sx.gymTemplate]);
+      else if (RUN_IDS.includes(sx.type)) gruposAyer.push("impact");
+    });
+    const razones = [];
+    if (gruposAyer.includes("upper")) razones.push("ayer trabajaste tren superior");
+    else if (gruposAyer.includes("lower")) razones.push("ayer trabajaste tren inferior");
+    else if (gruposAyer.includes("impact")) razones.push("ayer tuviste impacto");
+    const quedan = porHacer.length;
+    if (quedan > 0) razones.push(`quedan ${quedan} ${quedan === 1 ? "sesi\xF3n" : "sesiones"} del cupo semanal`);
+    plan.why = razones.length ? razones.join(" y ") : null;
   }
-  return { type: "default", training: baseTemplate };
+  if (plan.type === "default" && plan.training.type === "rest") {
+    const hechas = Object.keys(done).length;
+    if (hechas >= WEEK_QUOTA.length) plan.why = "cupo semanal completo";
+    else if (porHacer.length > 0) plan.why = `${porHacer.length} pendientes repartidas en los d\xEDas que quedan`;
+  }
+  return plan;
 }
 function lastWeightFor(sessions, exerciseId) {
   for (const s of sessions) {
@@ -556,6 +823,33 @@ function lastWeightFor(sessions, exerciseId) {
       const lastSet = [...log].reverse().find((x) => x.weight);
       if (lastSet) return { weight: lastSet.weight, reps: lastSet.reps };
     }
+  }
+  return null;
+}
+function topReps(repsStr) {
+  const m = String(repsStr).match(/(\d+)\s*[–-]\s*(\d+)/);
+  if (m) return parseInt(m[2]);
+  const solo = String(repsStr).match(/^(\d+)\s*$/);
+  return solo ? parseInt(solo[1]) : null;
+}
+function lastPerformance(sessions, ex) {
+  for (const s of sessions) {
+    if (s.type !== "gym" || !s.exerciseLog) continue;
+    const log = s.exerciseLog[ex.id];
+    if (!log || !log.length) continue;
+    const conPeso = log.filter((x) => x.weight > 0);
+    const peso = conPeso.length ? Math.max(...conPeso.map((x) => x.weight)) : 0;
+    const tope = topReps(ex.reps);
+    const completas = tope && log.length >= ex.sets && log.every((x) => (x.reps || 0) >= tope);
+    const paso = peso >= 40 ? 2.5 : 1;
+    return {
+      date: s.date,
+      sets: log,
+      peso,
+      subir: !!(completas && peso > 0),
+      sugerido: completas && peso > 0 ? Math.round((peso + paso) * 10) / 10 : peso,
+      tope
+    };
   }
   return null;
 }
@@ -941,10 +1235,13 @@ function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, str
   const doneToday = exercisesDone[todayISO()] || [];
   const prehabPct = Math.round(doneToday.length / PREHAB.length * 100);
   const marathon = goals.find((g) => g.type === "marathon" && !g.completed);
+  const roadmap = useMemo(() => marathon ? marathonRoadmap(sessions, marathon) : null, [sessions, marathon]);
   const raceGoal = goals.find((g) => g.type === "race" && !g.completed);
   const weekKmRun = sessions.filter((s) => RUN_IDS.includes(s.type) && daysAgo(s.date) <= 7).reduce((a, s) => a + (parseFloat(s.distance) || 0), 0);
-  const plan = getTodayPlan(events, todayISO());
+  const plan = getTodayPlan(sessions, events, todayISO());
   const wp = useMemo(() => weekProgress(sessions, events), [sessions, events]);
+  const acwr = useMemo(() => calcACWR(sessions), [sessions]);
+  const plyo = useMemo(() => plyoStatus(sessions, checkins), [sessions, checkins]);
   const hour = (/* @__PURE__ */ new Date()).getHours();
   const greeting = greetingFor(hour, profile.name);
   const upcoming7 = useMemo(() => {
@@ -952,17 +1249,20 @@ function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, str
     for (let i = 0; i < 7; i++) {
       const date = addDays(todayISO(), i);
       const dayEvents = events.filter((e) => e.date === date && !e.completed);
-      arr.push({ date, dow: dowOf(date), events: dayEvents, plan: getTodayPlan(events, date), isToday: i === 0 });
+      arr.push({ date, dow: dowOf(date), events: dayEvents, plan: getTodayPlan(sessions, events, date), isToday: i === 0 });
     }
     return arr;
   }, [events]);
-  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { className: "fade-in", style: { marginBottom: "2px" } }, /* @__PURE__ */ React.createElement(Label, null, (/* @__PURE__ */ new Date()).toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "28px", color: C.ink, marginTop: "4px", lineHeight: 1 } }, greeting.toUpperCase())), /* @__PURE__ */ React.createElement(TodayCard, { C, plan, onStartGym, askCoach, profile }), /* @__PURE__ */ React.createElement(Card, { C, style: { background: wp.pct >= 80 ? C.accentBg : C.card, border: `1px solid ${wp.pct >= 80 ? C.accentBg : C.border}` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, { color: wp.pct >= 80 ? C.accentText : C.inkMuted }, "Semana en curso"), streak > 0 && /* @__PURE__ */ React.createElement(Label, { color: wp.pct >= 80 ? C.accentText : C.accent }, "\u{1F525} ", streak, " ", streak === 1 ? "SEMANA" : "SEMANAS")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "12px", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(DisplayNum, { value: `${wp.met}/${wp.required}`, size: 38, color: wp.pct >= 80 ? C.accentText : C.ink }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: wp.pct >= 80 ? C.accentText : C.inkMuted, fontWeight: 500, opacity: 0.9 } }, "sesiones planificadas")), /* @__PURE__ */ React.createElement("div", { style: { height: "8px", background: wp.pct >= 80 ? "rgba(0,0,0,0.08)" : C.surface, borderRadius: "4px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { width: `${Math.min(100, wp.pct)}%`, height: "100%", background: wp.pct >= 80 ? C.accent : C.ink, transition: "width 0.4s" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: wp.pct >= 80 ? C.accentText : C.inkMuted, marginTop: "8px", fontWeight: 500 } }, wp.pct >= 100 ? "\u2713 Semana completa" : wp.pct >= 80 ? "\u2713 Semana cumplida (80%+)" : streak > 0 ? `Faltan ${Math.max(0, Math.ceil(wp.required * 0.8) - wp.met)} para mantener la racha` : "Cumple 80% de la semana para arrancar tu racha")), marathon && /* @__PURE__ */ React.createElement(MarathonCard, { C, goal: marathon, weekKm: weekKmRun, askCoach }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, null, "Pr\xF3ximos 7 d\xEDas")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "4px", margin: "0 -4px", padding: "0 4px 4px" } }, upcoming7.map((d) => /* @__PURE__ */ React.createElement(DayChip, { key: d.date, d, C })))), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "14px" } }, /* @__PURE__ */ React.createElement(Label, null, "Estado de hoy"), /* @__PURE__ */ React.createElement(Label, { color: hasCheckinToday ? C.success : C.inkFaint }, hasCheckinToday ? "\u2713 Registrado" : "Pendiente")), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" } }, /* @__PURE__ */ React.createElement(StatMini, { label: "Energ\xEDa", value: latest?.energy ?? "\u2014", C }), /* @__PURE__ */ React.createElement(StatMini, { label: "Sue\xF1o", value: latest?.sleep ?? "\u2014", C }), /* @__PURE__ */ React.createElement(StatMini, { label: "Tibia", value: latest?.painTibia ?? "\u2014", C, warn: (latest?.painTibia ?? 0) >= 4 }), /* @__PURE__ */ React.createElement(StatMini, { label: "Prehab", value: `${prehabPct}%`, C, good: prehabPct >= 60 })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", marginTop: "14px" } }, /* @__PURE__ */ React.createElement(GhostButton, { onClick: () => setShowCheckin(!showCheckin), C, style: { flex: 1 } }, showCheckin ? "Cerrar" : "Check-in"), /* @__PURE__ */ React.createElement(GhostButton, { onClick: () => setShowSession(!showSession), C, style: { flex: 1 } }, showSession ? "Cerrar" : "+ Sesi\xF3n")), showCheckin && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "14px", paddingTop: "14px", borderTop: `1px solid ${C.border}` } }, /* @__PURE__ */ React.createElement(CheckinForm, { C, existing: hasCheckinToday ? latest : null, onSave: async (c) => {
+  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { className: "fade-in", style: { marginBottom: "2px" } }, /* @__PURE__ */ React.createElement(Label, null, (/* @__PURE__ */ new Date()).toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "28px", color: C.ink, marginTop: "4px", lineHeight: 1 } }, greeting.toUpperCase())), /* @__PURE__ */ React.createElement(TodayCard, { C, plan, onStartGym, askCoach, profile }), /* @__PURE__ */ React.createElement(Card, { C, style: { background: wp.pct >= 80 ? C.accentBg : C.card, border: `1px solid ${wp.pct >= 80 ? C.accentBg : C.border}` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, { color: wp.pct >= 80 ? C.accentText : C.inkMuted }, "Semana en curso"), streak > 0 && /* @__PURE__ */ React.createElement(Label, { color: wp.pct >= 80 ? C.accentText : C.accent }, "\u{1F525} ", streak, " ", streak === 1 ? "SEMANA" : "SEMANAS")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "12px", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(DisplayNum, { value: `${wp.met}/${wp.required}`, size: 38, color: wp.pct >= 80 ? C.accentText : C.ink }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: wp.pct >= 80 ? C.accentText : C.inkMuted, fontWeight: 500, opacity: 0.9 } }, "sesiones planificadas")), /* @__PURE__ */ React.createElement("div", { style: { height: "8px", background: wp.pct >= 80 ? "rgba(0,0,0,0.08)" : C.surface, borderRadius: "4px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { width: `${Math.min(100, wp.pct)}%`, height: "100%", background: wp.pct >= 80 ? C.accent : C.ink, transition: "width 0.4s" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: wp.pct >= 80 ? C.accentText : C.inkMuted, marginTop: "8px", fontWeight: 500 } }, wp.pct >= 100 ? "\u2713 Semana completa" : wp.pct >= 80 ? "\u2713 Semana cumplida (80%+)" : streak > 0 ? `Faltan ${Math.max(0, Math.ceil(wp.required * 0.8) - wp.met)} para mantener la racha` : "Cumple 80% de la semana para arrancar tu racha"), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "14px", paddingTop: "14px", borderTop: `1px solid ${wp.pct >= 80 ? "rgba(0,0,0,0.08)" : C.border}` } }, WEEK_QUOTA.map((q) => {
+    const hecho = wp.done[q.id];
+    return /* @__PURE__ */ React.createElement("div", { key: q.id, style: { display: "flex", alignItems: "center", gap: "9px", padding: "4px 0" } }, /* @__PURE__ */ React.createElement("div", { style: { width: "14px", height: "14px", flexShrink: 0, borderRadius: "4px", background: hecho ? C.success : "transparent", border: `1.5px solid ${hecho ? C.success : C.borderStrong}`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "9px", fontWeight: 700 } }, hecho ? "\u2713" : ""), /* @__PURE__ */ React.createElement("span", { style: { flex: 1, fontSize: "12px", color: hecho ? C.inkMuted : C.ink, fontWeight: 500, textDecoration: hecho ? "line-through" : "none" } }, q.label), hecho && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "10px", color: C.inkFaint, fontWeight: 600 } }, formatDate(hecho)));
+  }))), marathon && /* @__PURE__ */ React.createElement(MarathonCard, { C, goal: marathon, weekKm: weekKmRun, askCoach, roadmap }), /* @__PURE__ */ React.createElement(LoadCard, { C, acwr, askCoach }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, null, "Pr\xF3ximos 7 d\xEDas")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "4px", margin: "0 -4px", padding: "0 4px 4px" } }, upcoming7.map((d) => /* @__PURE__ */ React.createElement(DayChip, { key: d.date, d, C })))), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "14px" } }, /* @__PURE__ */ React.createElement(Label, null, "Estado de hoy"), /* @__PURE__ */ React.createElement(Label, { color: hasCheckinToday ? C.success : C.inkFaint }, hasCheckinToday ? "\u2713 Registrado" : "Pendiente")), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" } }, /* @__PURE__ */ React.createElement(StatMini, { label: "Energ\xEDa", value: latest?.energy ?? "\u2014", C }), /* @__PURE__ */ React.createElement(StatMini, { label: "Sue\xF1o", value: latest?.sleep ?? "\u2014", C }), /* @__PURE__ */ React.createElement(StatMini, { label: "Tibia", value: latest?.painTibia ?? "\u2014", C, warn: (latest?.painTibia ?? 0) >= 4 }), /* @__PURE__ */ React.createElement(StatMini, { label: "Prehab", value: `${prehabPct}%`, C, good: prehabPct >= 60 })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", marginTop: "14px" } }, /* @__PURE__ */ React.createElement(GhostButton, { onClick: () => setShowCheckin(!showCheckin), C, style: { flex: 1 } }, showCheckin ? "Cerrar" : "Check-in"), /* @__PURE__ */ React.createElement(GhostButton, { onClick: () => setShowSession(!showSession), C, style: { flex: 1 } }, showSession ? "Cerrar" : "+ Sesi\xF3n")), showCheckin && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "14px", paddingTop: "14px", borderTop: `1px solid ${C.border}` } }, /* @__PURE__ */ React.createElement(CheckinForm, { C, existing: hasCheckinToday ? latest : null, onSave: async (c) => {
     await onSaveCheckin(c);
     setShowCheckin(false);
   }, date: todayISO() })), showSession && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "14px", paddingTop: "14px", borderTop: `1px solid ${C.border}` } }, /* @__PURE__ */ React.createElement(SessionForm, { C, defaultDate: todayISO(), onSubmit: async (s) => {
     await onAddSession(s);
     setShowSession(false);
-  } }))), raceGoal && /* @__PURE__ */ React.createElement(RunningCard, { C, raceGoal, weekKm: weekKmRun, weeklyTarget: marathon?.weeklyKmTarget || 40, askCoach }), /* @__PURE__ */ React.createElement(MountainCard, { C, sessions, askCoach }), /* @__PURE__ */ React.createElement(FootballCard, { C, events, sessions, askCoach }), /* @__PURE__ */ React.createElement(TreadmillCard, { C, askCoach }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, null, "Gimnasio"), /* @__PURE__ */ React.createElement(Label, { color: C.inkMuted }, sessions.filter((s) => s.type === "gym" && daysAgo(s.date) <= 7).length, " ESTA SEMANA")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "8px" } }, Object.values(GYM_TEMPLATES).map((tpl) => {
+  } }))), raceGoal && /* @__PURE__ */ React.createElement(RunningCard, { C, raceGoal, weekKm: weekKmRun, weeklyTarget: marathon?.weeklyKmTarget || 40, askCoach }), /* @__PURE__ */ React.createElement(MountainCard, { C, sessions, askCoach }), /* @__PURE__ */ React.createElement(FootballCard, { C, events, sessions, askCoach }), /* @__PURE__ */ React.createElement(TreadmillCard, { C, askCoach }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, null, "Gimnasio"), /* @__PURE__ */ React.createElement(Label, { color: C.inkMuted }, sessions.filter((s) => s.type === "gym" && daysAgo(s.date) <= 7).length, " ESTA SEMANA")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "8px" } }, Object.values(GYM_TEMPLATES).filter((tpl) => !String(tpl.id).startsWith("plyo_")).map((tpl) => {
     const last = sessions.find((s) => s.type === "gym" && s.gymTemplate === tpl.id);
     const isToday = plan.type === "default" && plan.training.type === "gym" && plan.training.gymId === tpl.id;
     return /* @__PURE__ */ React.createElement("button", { key: tpl.id, onClick: () => onStartGym(tpl.id), style: {
@@ -979,7 +1279,7 @@ function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, str
       color: C.ink,
       fontFamily: FONT_BODY
     } }, /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "17px", color: isToday ? C.accentText : C.ink, lineHeight: 1.1, textTransform: "uppercase" } }, tpl.name.replace("\xB7", "\xB7")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: isToday ? C.accentText : C.inkMuted, marginTop: "3px", fontWeight: 500, opacity: 0.9 } }, tpl.exercises.length, " ejercicios", last ? ` \xB7 \xFAltima ${formatDate(last.date)}` : " \xB7 sin registros", isToday ? " \xB7 HOY" : "")), /* @__PURE__ */ React.createElement("div", { style: { flexShrink: 0, color: isToday ? C.accent : C.inkFaint, fontSize: "17px", fontWeight: 700 } }, "\u25B8"));
-  }))), achievements && (() => {
+  }))), /* @__PURE__ */ React.createElement(PlyoCard, { C, plyo, askCoach, onStartGym }), achievements && (() => {
     const done = achievements.filter((a) => a.unlocked);
     const cerca = achievements.filter((a) => !a.unlocked && !a.hideProgress && a.pct > 0).sort((a, b) => b.pct - a.pct).slice(0, 2);
     const recientes = done.filter((a) => unlocked[a.id]).sort((a, b) => (unlocked[b.id] || "").localeCompare(unlocked[a.id] || "")).slice(0, 4);
@@ -1073,7 +1373,7 @@ function TodayCard({ C, plan, onStartGym, askCoach, profile }) {
       cta = { label: "Ver opciones", action: () => askCoach("\xBFQu\xE9 me recomiendas hoy? Es d\xEDa de descanso.") };
     }
   }
-  return /* @__PURE__ */ React.createElement("div", { className: "fade-in", style: { background, borderRadius: "18px", padding: "22px 20px", border: background === C.card || background === C.surface ? `1px solid ${C.border}` : "none", overflow: "hidden", position: "relative" } }, showAccent && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: 0, right: 0, width: "80px", height: "80px", background: C.accent, borderRadius: "0 18px 0 100%", opacity: 0.15 } }), /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: kickerColor, letterSpacing: "0.12em", fontWeight: 700, marginBottom: "10px" } }, kicker), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "38px", color: textColor, lineHeight: 0.95, marginBottom: "6px" } }, title), subtitle && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: textColor, opacity: 0.7, marginBottom: hint || gymTemplate ? "14px" : "18px", letterSpacing: "0.08em", fontWeight: 500 } }, subtitle), hint && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: textColor, opacity: 0.85, marginBottom: "16px", lineHeight: 1.5 } }, hint), gymTemplate && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "16px", padding: "12px 14px", background: "rgba(255,255,255,0.06)", borderRadius: "10px" } }, gymTemplate.exercises.slice(0, 4).map((ex, i) => /* @__PURE__ */ React.createElement("div", { key: ex.id, style: { fontSize: "12px", color: textColor, opacity: 0.9, padding: "3px 0", display: "flex", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", null, ex.name), /* @__PURE__ */ React.createElement("span", { style: { color: C.accent, fontWeight: 700, fontFamily: FONT_DISPLAY, fontSize: "13px", letterSpacing: "0.03em" } }, ex.sets, "\xD7", ex.reps))), gymTemplate.exercises.length > 4 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: textColor, opacity: 0.6, marginTop: "6px", textAlign: "center" } }, "+ ", gymTemplate.exercises.length - 4, " ejercicios m\xE1s")), cta.accent ? /* @__PURE__ */ React.createElement("button", { onClick: cta.action, style: { padding: "14px", background: C.accent, color: "#FFFFFF", border: "none", borderRadius: "10px", fontFamily: FONT_DISPLAY, fontSize: "15px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", cursor: "pointer", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" } }, cta.label, " \u25B8") : /* @__PURE__ */ React.createElement("button", { onClick: cta.action, style: { padding: "14px", background: background === C.ink ? "#FFFFFF" : C.ink, color: background === C.ink ? C.ink : C.bg, border: "none", borderRadius: "10px", fontFamily: FONT_DISPLAY, fontSize: "15px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", cursor: "pointer", width: "100%" } }, cta.label, " \u25B8")));
+  return /* @__PURE__ */ React.createElement("div", { className: "fade-in", style: { background, borderRadius: "18px", padding: "22px 20px", border: background === C.card || background === C.surface ? `1px solid ${C.border}` : "none", overflow: "hidden", position: "relative" } }, showAccent && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: 0, right: 0, width: "80px", height: "80px", background: C.accent, borderRadius: "0 18px 0 100%", opacity: 0.15 } }), /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: kickerColor, letterSpacing: "0.12em", fontWeight: 700, marginBottom: "10px" } }, kicker), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "38px", color: textColor, lineHeight: 0.95, marginBottom: "6px" } }, title), subtitle && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: textColor, opacity: 0.7, marginBottom: hint || gymTemplate ? "14px" : "18px", letterSpacing: "0.08em", fontWeight: 500 } }, subtitle), hint && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: textColor, opacity: 0.85, marginBottom: "16px", lineHeight: 1.5 } }, hint), plan.why && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: textColor, opacity: 0.6, marginBottom: "14px", lineHeight: 1.45, fontStyle: "italic" } }, "Por qu\xE9: ", plan.why, "."), gymTemplate && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "16px", padding: "12px 14px", background: "rgba(255,255,255,0.06)", borderRadius: "10px" } }, gymTemplate.exercises.slice(0, 4).map((ex, i) => /* @__PURE__ */ React.createElement("div", { key: ex.id, style: { fontSize: "12px", color: textColor, opacity: 0.9, padding: "3px 0", display: "flex", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", null, ex.name), /* @__PURE__ */ React.createElement("span", { style: { color: C.accent, fontWeight: 700, fontFamily: FONT_DISPLAY, fontSize: "13px", letterSpacing: "0.03em" } }, ex.sets, "\xD7", ex.reps))), gymTemplate.exercises.length > 4 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: textColor, opacity: 0.6, marginTop: "6px", textAlign: "center" } }, "+ ", gymTemplate.exercises.length - 4, " ejercicios m\xE1s")), cta.accent ? /* @__PURE__ */ React.createElement("button", { onClick: cta.action, style: { padding: "14px", background: C.accent, color: "#FFFFFF", border: "none", borderRadius: "10px", fontFamily: FONT_DISPLAY, fontSize: "15px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", cursor: "pointer", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" } }, cta.label, " \u25B8") : /* @__PURE__ */ React.createElement("button", { onClick: cta.action, style: { padding: "14px", background: background === C.ink ? "#FFFFFF" : C.ink, color: background === C.ink ? C.ink : C.bg, border: "none", borderRadius: "10px", fontFamily: FONT_DISPLAY, fontSize: "15px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", cursor: "pointer", width: "100%" } }, cta.label, " \u25B8")));
 }
 function DayChip({ d, C }) {
   const hasEvent = d.events.length > 0;
@@ -1093,11 +1393,33 @@ function DayChip({ d, C }) {
     textAlign: "center"
   } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: d.isToday ? C.bg : C.inkMuted, letterSpacing: "0.1em", fontWeight: 600, opacity: d.isToday ? 0.7 : 1 } }, DAY_SHORT[d.dow]), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "20px", color: d.isToday ? C.bg : C.ink, marginTop: "2px", lineHeight: 1 } }, d.date.split("-")[2]), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "9px", color: d.isToday ? C.accent : hasEvent ? C.accent : C.inkMuted, letterSpacing: "0.05em", fontWeight: 700, marginTop: "6px", textTransform: "uppercase" } }, labelType));
 }
-function MarathonCard({ C, goal, weekKm, askCoach }) {
+function MarathonCard({ C, goal, weekKm, askCoach, roadmap }) {
   const daysLeft = daysUntil(goal.targetDate);
-  const target = goal.weeklyKmTarget || 0;
+  const semanal = roadmap?.estaSemana;
+  const target = semanal ? semanal.km : goal.weeklyKmTarget || 0;
   const pct = target > 0 ? Math.min(100, weekKm / target * 100) : 0;
-  return /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "14px" } }, /* @__PURE__ */ React.createElement(Label, null, goal.title), /* @__PURE__ */ React.createElement(Label, { color: C.accent }, "T\u2013", daysLeft, " D\xCDAS")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "14px", marginBottom: "16px" } }, /* @__PURE__ */ React.createElement(DisplayNum, { value: weekKm.toFixed(1), size: 44, color: C.ink }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: C.inkMuted, fontWeight: 500 } }, "de ", target, " km \xB7 \xFAltimos 7 d\xEDas"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkFaint, marginTop: "2px" } }, formatDate(goal.targetDate)))), /* @__PURE__ */ React.createElement("div", { style: { height: "8px", background: C.surface, borderRadius: "4px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { width: `${pct}%`, height: "100%", background: pct >= 90 ? C.success : C.accent, transition: "width 0.4s" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "8px", fontWeight: 500 } }, pct >= 90 ? "\u2713 Semana completa" : pct >= 50 ? `Faltan ${(target - weekKm).toFixed(1)} km` : `Vas al ${Math.round(pct)}%`));
+  const FASE_TXT = { "construcci\xF3n": "Construcci\xF3n", "descarga": "Semana de descarga", "taper": "Afinamiento" };
+  return /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "14px" } }, /* @__PURE__ */ React.createElement(Label, null, goal.title), /* @__PURE__ */ React.createElement(Label, { color: C.accent }, "T\u2013", daysLeft, " D\xCDAS")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "14px", marginBottom: "16px" } }, /* @__PURE__ */ React.createElement(DisplayNum, { value: weekKm.toFixed(1), size: 44, color: C.ink }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: C.inkMuted, fontWeight: 500 } }, "de ", target, " km \xB7 \xFAltimos 7 d\xEDas"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkFaint, marginTop: "2px" } }, semanal ? `${FASE_TXT[semanal.fase] || semanal.fase} \xB7 meta ${roadmap.objetivo} km` : formatDate(goal.targetDate)))), /* @__PURE__ */ React.createElement("div", { style: { height: "8px", background: C.surface, borderRadius: "4px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { width: `${pct}%`, height: "100%", background: pct >= 90 ? C.success : C.accent, transition: "width 0.4s" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "8px", fontWeight: 500 } }, pct >= 90 ? "\u2713 Objetivo de la semana cumplido" : pct >= 50 ? `Faltan ${(target - weekKm).toFixed(1)} km` : `Vas al ${Math.round(pct)}%`), roadmap && roadmap.semanas.length > 1 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "14px", paddingTop: "14px", borderTop: `1px solid ${C.border}` } }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: "10px" } }, "Pr\xF3ximas semanas"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "4px" } }, roadmap.semanas.slice(0, 8).map((w, i) => {
+    const alto = Math.max(...roadmap.semanas.slice(0, 8).map((x) => x.km));
+    const h = Math.max(6, w.km / alto * 42);
+    const col = w.fase === "descarga" ? C.success : w.fase === "taper" ? C.warning : C.accent;
+    return /* @__PURE__ */ React.createElement("div", { key: i, style: { flex: 1, minWidth: "34px", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { height: "46px", display: "flex", alignItems: "flex-end", justifyContent: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: `${h}px`, background: i === 0 ? col : col + "55", borderRadius: "3px 3px 0 0" } })), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "12px", color: C.ink, marginTop: "4px" } }, Math.round(w.km)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "8px", color: C.inkFaint, fontWeight: 600, letterSpacing: "0.04em" } }, i === 0 ? "HOY" : "S" + (i + 1)));
+  })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.inkMuted, marginTop: "8px", lineHeight: 1.5 } }, "Base ", roadmap.base, " km \xB7 pico previsto ", roadmap.pico, " km \xB7 ", roadmap.semanasRestantes, " semanas a la carrera. Incrementos m\xE1ximos del 10% y descarga cada 4 semanas.")));
+}
+function PlyoCard({ C, plyo, askCoach, onStartGym }) {
+  const t = plyo.template;
+  const recienteDemasiado = plyo.diasDesde !== null && plyo.diasDesde < 2;
+  return /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, null, "Pliometr\xEDa"), /* @__PURE__ */ React.createElement(Label, { color: C.accent }, "NIVEL ", plyo.nivel, " DE 3")), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "22px", color: C.ink, lineHeight: 1.05, textTransform: "uppercase" } }, t.name.split("\xB7")[1]?.trim() || t.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkDim, marginTop: "6px", lineHeight: 1.45 } }, t.objetivo), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginTop: "14px" } }, /* @__PURE__ */ React.createElement(StatMini, { label: "contactos", value: t.contactos, C }), /* @__PURE__ */ React.createElement(StatMini, { label: "esta semana", value: `${plyo.estaSemana}/2`, C, good: plyo.estaSemana >= 2 }), /* @__PURE__ */ React.createElement(StatMini, { label: "en el nivel", value: `${plyo.enNivel}/6`, C })), plyo.debeBajar && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "12px", padding: "11px 13px", background: C.dangerBg, border: `1px solid ${C.danger}`, borderRadius: "9px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.danger, fontWeight: 700, letterSpacing: "0.06em" } }, "SALTA LA PLIOMETR\xCDA"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.danger, marginTop: "4px", lineHeight: 1.45 } }, "Registraste ", plyo.dolor14 ? "dolor tibial" : "s\xEDntomas", " en los \xFAltimos 14 d\xEDas. Con estr\xE9s \xF3seo la regla es no entrenar con dolor durante ni despu\xE9s. Espera a estar asintom\xE1tico.")), !plyo.debeBajar && plyo.puedeSubir && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "12px", padding: "11px 13px", background: C.accentBg, border: `1px solid ${C.accent}`, borderRadius: "9px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.accentText, fontWeight: 700, letterSpacing: "0.06em" } }, "\u25B2 LISTO PARA NIVEL ", plyo.nivel + 1), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.accentText, marginTop: "4px", lineHeight: 1.45 } }, "Seis sesiones completadas sin dolor. Empieza el nivel siguiente."), /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: () => onStartGym("plyo_" + (plyo.nivel + 1)), style: { width: "100%", marginTop: "10px", borderColor: C.accent, color: C.accentText } }, "Iniciar nivel ", plyo.nivel + 1)), recienteDemasiado && !plyo.debeBajar && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "12px", lineHeight: 1.45 } }, "\xDAltima sesi\xF3n ", plyo.diasDesde === 0 ? "hoy" : "ayer", ". Deja 48 h entre sesiones de impacto explosivo."), !plyo.debeBajar && /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: () => onStartGym(t.id), style: { width: "100%", marginTop: "12px" }, disabled: recienteDemasiado }, recienteDemasiado ? "Descansa 48 h" : "Iniciar sesi\xF3n"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.inkFaint, marginTop: "10px", lineHeight: 1.5 } }, "Calienta antes. Si aparece dolor tibial durante o despu\xE9s, det\xE9n y registra el s\xEDntoma."), /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: () => askCoach(`Voy en pliometr\xEDa nivel ${plyo.nivel} (${plyo.total} sesiones). \xBFC\xF3mo la encajo con mi semana y mis ritmos?`), style: { width: "100%", marginTop: "8px" } }, "Preguntar al coach"));
+}
+function LoadCard({ C, acwr, askCoach }) {
+  if (!acwr.listo) {
+    return /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: "10px" } }, "Carga de entrenamiento"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkMuted, lineHeight: 1.5 } }, "Necesito unas 3 semanas de registros para calcular tu ratio de carga.", acwr.faltan > 0 ? ` Faltan ${acwr.faltan} d\xEDas.` : ""));
+  }
+  const COL = { baja: C.warning, optima: C.success, precaucion: C.warning, danger: C.danger, alta: C.danger };
+  const col = COL[acwr.zona] || C.ink;
+  const ETIQ = { baja: "CARGA BAJA", optima: "ZONA \xD3PTIMA", precaucion: "PRECAUCI\xD3N", alta: "CARGA ALTA" };
+  const pos = Math.min(100, acwr.ratio / 2 * 100);
+  return /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, null, "Carga de entrenamiento"), /* @__PURE__ */ React.createElement(Label, { color: col }, ETIQ[acwr.zona])), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "12px", marginBottom: "14px" } }, /* @__PURE__ */ React.createElement(DisplayNum, { value: acwr.ratio.toFixed(2), size: 40, color: col }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, fontWeight: 500, lineHeight: 1.4 } }, acwr.aguda.toFixed(0), " km esta semana", /* @__PURE__ */ React.createElement("br", null), "vs ", acwr.cronica.toFixed(0), " de tu base")), /* @__PURE__ */ React.createElement("div", { style: { position: "relative", height: "8px", borderRadius: "4px", overflow: "hidden", display: "flex" } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 40, background: C.warningBg } }), /* @__PURE__ */ React.createElement("div", { style: { flex: 25, background: C.successBg } }), /* @__PURE__ */ React.createElement("div", { style: { flex: 10, background: C.warningBg } }), /* @__PURE__ */ React.createElement("div", { style: { flex: 25, background: C.dangerBg } })), /* @__PURE__ */ React.createElement("div", { style: { position: "relative", height: "12px" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", left: `${pos}%`, top: "-4px", width: "3px", height: "14px", background: col, borderRadius: "2px", transform: "translateX(-50%)" } })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: "9px", color: C.inkFaint, fontWeight: 600, marginTop: "2px" } }, /* @__PURE__ */ React.createElement("span", null, "0,8"), /* @__PURE__ */ React.createElement("span", null, "1,3"), /* @__PURE__ */ React.createElement("span", null, "1,5"), /* @__PURE__ */ React.createElement("span", null, "2,0")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkDim, marginTop: "10px", lineHeight: 1.5 } }, acwr.texto), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.inkFaint, marginTop: "8px", lineHeight: 1.45 } }, "Compara tus \xFAltimos 7 d\xEDas con tu promedio de 28. Es una gu\xEDa, no un diagn\xF3stico: interpr\xE9talo junto a c\xF3mo te sientes."), (acwr.zona === "alta" || acwr.zona === "precaucion") && /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: () => askCoach(`Mi ratio de carga est\xE1 en ${acwr.ratio.toFixed(2)}. \xBFAjusto la semana?`), style: { width: "100%", marginTop: "12px" } }, "Consultar al coach"));
 }
 function RunningCard({ C, raceGoal, weekKm, weeklyTarget, askCoach }) {
   const current = raceGoal?.currentBest || "53:00";
@@ -1132,8 +1454,9 @@ function GymSessionOverlay({ C, session, sessions, onClose, onFinish }) {
   useEffect(() => {
     const initial = {};
     template.exercises.forEach((ex) => {
-      const last = lastWeightFor(sessions, ex.id);
-      initial[ex.id] = Array.from({ length: ex.sets }, () => ({ reps: "", weight: last?.weight || "", done: false }));
+      const prev = lastPerformance(sessions, ex);
+      const peso = prev ? prev.subir ? prev.sugerido : prev.peso : "";
+      initial[ex.id] = Array.from({ length: ex.sets }, () => ({ reps: "", weight: peso || "", done: false }));
     });
     setLog(initial);
   }, [session.templateId]);
@@ -1179,16 +1502,17 @@ function GymSessionOverlay({ C, session, sessions, onClose, onFinish }) {
       idx,
       sets: log[ex.id] || [],
       expanded: expandedId === ex.id,
+      prev: lastPerformance(sessions, ex),
       onExpand: () => setExpandedId(expandedId === ex.id ? null : ex.id),
       onUpdate: (setIdx, field, value) => updateSet(ex.id, setIdx, field, value),
       onMarkDone: (setIdx) => markDone(ex.id, setIdx)
     }
   )), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "20px" } }, /* @__PURE__ */ React.createElement(FormField, { label: "Notas de la sesi\xF3n", C }, /* @__PURE__ */ React.createElement(FormInput, { C, value: notes, onChange: setNotes, placeholder: "Sensaciones, cargas, ajustes\u2026", multiline: true }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px", marginTop: "20px", marginBottom: "20px" } }, /* @__PURE__ */ React.createElement(GhostButton, { onClick: tryClose, C, style: { flex: 1 } }, "Cancelar"), /* @__PURE__ */ React.createElement(AccentButton, { onClick: finish, C, style: { flex: 2 } }, "Finalizar"))));
 }
-function ExerciseBlock({ C, ex, idx, sets, expanded, onExpand, onUpdate, onMarkDone }) {
+function ExerciseBlock({ C, ex, idx, sets, expanded, onExpand, onUpdate, onMarkDone, prev }) {
   const doneCount = sets.filter((s) => s.done).length;
   const allDone = doneCount === sets.length && sets.length > 0;
-  return /* @__PURE__ */ React.createElement("div", { style: { background: C.card, border: `1px solid ${allDone ? C.success : C.border}`, borderRadius: "12px", marginBottom: "10px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("button", { onClick: onExpand, style: { width: "100%", textAlign: "left", padding: "14px 16px", background: "transparent", border: "none", color: C.ink, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "10px" } }, /* @__PURE__ */ React.createElement("span", { className: "display", style: { fontSize: "18px", color: C.inkFaint } }, String(idx + 1).padStart(2, "0")), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "14px", fontWeight: 600, color: C.ink } }, ex.name)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "3px", fontWeight: 500, letterSpacing: "0.03em" } }, ex.sets, " \xD7 ", ex.reps, " \xB7 descanso ", ex.rest)), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "14px", color: allDone ? C.success : C.accent } }, doneCount, "/", sets.length)), expanded && /* @__PURE__ */ React.createElement("div", { style: { padding: "0 16px 16px", borderTop: `1px solid ${C.border}` } }, ex.hint && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, fontStyle: "italic", margin: "10px 0", lineHeight: 1.4 } }, ex.hint), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "30px 1fr 1fr 42px", gap: "8px", fontSize: "10px", color: C.inkMuted, letterSpacing: "0.08em", fontWeight: 600, marginBottom: "8px", paddingBottom: "6px", borderBottom: `1px solid ${C.border}` } }, /* @__PURE__ */ React.createElement("div", null, "SET"), /* @__PURE__ */ React.createElement("div", null, "REPS"), /* @__PURE__ */ React.createElement("div", null, "KG"), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, "\u2713")), sets.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "grid", gridTemplateColumns: "30px 1fr 1fr 42px", gap: "8px", alignItems: "center", padding: "5px 0" } }, /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "15px", color: C.inkDim } }, i + 1), /* @__PURE__ */ React.createElement("input", { inputMode: "numeric", pattern: "[0-9]*", value: s.reps, onChange: (e) => onUpdate(i, "reps", e.target.value.replace(/\D/g, "")), placeholder: "\u2014", style: setInputStyle(s.done, C) }), /* @__PURE__ */ React.createElement("input", { inputMode: "decimal", value: s.weight, onChange: (e) => onUpdate(i, "weight", e.target.value.replace(/[^0-9.]/g, "")), placeholder: "\u2014", style: setInputStyle(s.done, C) }), /* @__PURE__ */ React.createElement("button", { onClick: () => onMarkDone(i), style: { padding: "8px", background: s.done ? C.success : "transparent", border: `1.5px solid ${s.done ? C.success : C.borderStrong}`, borderRadius: "6px", color: s.done ? "#FFFFFF" : C.inkMuted, cursor: "pointer", fontSize: "12px", fontWeight: 700 } }, s.done ? "\u2713" : " "))))));
+  return /* @__PURE__ */ React.createElement("div", { style: { background: C.card, border: `1px solid ${allDone ? C.success : C.border}`, borderRadius: "12px", marginBottom: "10px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("button", { onClick: onExpand, style: { width: "100%", textAlign: "left", padding: "14px 16px", background: "transparent", border: "none", color: C.ink, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "10px" } }, /* @__PURE__ */ React.createElement("span", { className: "display", style: { fontSize: "18px", color: C.inkFaint } }, String(idx + 1).padStart(2, "0")), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "14px", fontWeight: 600, color: C.ink } }, ex.name)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "3px", fontWeight: 500, letterSpacing: "0.03em" } }, ex.sets, " \xD7 ", ex.reps, " \xB7 descanso ", ex.rest)), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "14px", color: allDone ? C.success : C.accent } }, doneCount, "/", sets.length)), expanded && /* @__PURE__ */ React.createElement("div", { style: { padding: "0 16px 16px", borderTop: `1px solid ${C.border}` } }, ex.hint && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, fontStyle: "italic", margin: "10px 0", lineHeight: 1.4 } }, ex.hint), prev && /* @__PURE__ */ React.createElement("div", { style: { margin: "10px 0", padding: "10px 12px", background: prev.subir ? C.accentBg : C.surface, borderRadius: "8px", border: prev.subir ? `1px solid ${C.accent}` : "none" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: prev.subir ? C.accentText : C.inkMuted, letterSpacing: "0.08em", fontWeight: 700 } }, prev.subir ? "\u25B2 TOCA SUBIR CARGA" : `\xDALTIMA VEZ \xB7 ${formatDate(prev.date)}`), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: prev.subir ? C.accentText : C.inkDim, marginTop: "4px", fontFamily: FONT_MONO } }, prev.sets.map((x) => `${x.reps || "?"}\xD7${x.weight || 0}kg`).join(" \xB7 ")), prev.subir && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.accentText, marginTop: "5px", fontWeight: 600 } }, "Completaste ", prev.tope, " reps en todas las series \u2192 sube a ", prev.sugerido, " kg")), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "30px 1fr 1fr 42px", gap: "8px", fontSize: "10px", color: C.inkMuted, letterSpacing: "0.08em", fontWeight: 600, marginBottom: "8px", paddingBottom: "6px", borderBottom: `1px solid ${C.border}` } }, /* @__PURE__ */ React.createElement("div", null, "SET"), /* @__PURE__ */ React.createElement("div", null, "REPS"), /* @__PURE__ */ React.createElement("div", null, "KG"), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, "\u2713")), sets.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "grid", gridTemplateColumns: "30px 1fr 1fr 42px", gap: "8px", alignItems: "center", padding: "5px 0" } }, /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "15px", color: C.inkDim } }, i + 1), /* @__PURE__ */ React.createElement("input", { inputMode: "numeric", pattern: "[0-9]*", value: s.reps, onChange: (e) => onUpdate(i, "reps", e.target.value.replace(/\D/g, "")), placeholder: "\u2014", style: setInputStyle(s.done, C) }), /* @__PURE__ */ React.createElement("input", { inputMode: "decimal", value: s.weight, onChange: (e) => onUpdate(i, "weight", e.target.value.replace(/[^0-9.]/g, "")), placeholder: "\u2014", style: setInputStyle(s.done, C) }), /* @__PURE__ */ React.createElement("button", { onClick: () => onMarkDone(i), style: { padding: "8px", background: s.done ? C.success : "transparent", border: `1.5px solid ${s.done ? C.success : C.borderStrong}`, borderRadius: "6px", color: s.done ? "#FFFFFF" : C.inkMuted, cursor: "pointer", fontSize: "12px", fontWeight: 700 } }, s.done ? "\u2713" : " "))))));
 }
 function setInputStyle(done, C) {
   return { padding: "8px 10px", background: done ? C.successBg : C.surface, border: `1px solid ${done ? C.success : C.border}`, borderRadius: "6px", color: done ? C.success : C.ink, fontFamily: FONT_DISPLAY, fontSize: "16px", textAlign: "center", outline: "none", width: "100%", boxSizing: "border-box", fontWeight: 600 };
@@ -1222,15 +1546,57 @@ function CoachTab({ C, profile, messages, onUpdate, onClear, goals, events, chec
 Fecha: ${todayISO()} (${DAY_FULL[(/* @__PURE__ */ new Date()).getDay()]})
 Atleta: ${profile.name}
 `;
-    const plan = getTodayPlan(events, todayISO());
+    const plan = getTodayPlan(sessions, events, todayISO());
     if (plan.type === "event") ctx += `
 PLAN HOY: Evento \u2014 "${plan.event.title}" [${EVENT_TYPES[plan.event.type].label}]${plan.event.notes ? ". " + plan.event.notes : ""}
 `;
     else if (plan.type === "taper") ctx += `
-PLAN HOY: Taper \u2014 el ${plan.event.date} tienes "${plan.event.title}" [${EVENT_TYPES[plan.event.type].label}] en ${plan.daysUntil} d. Base: ${plan.base.label}.
+PLAN HOY: Taper \u2014 el ${plan.event.date} tienes "${plan.event.title}" [${EVENT_TYPES[plan.event.type].label}] en ${plan.daysUntil} d.
 `;
     else ctx += `
-PLAN HOY (template): ${plan.training.label}${plan.training.hint ? " \u2014 " + plan.training.hint : ""}
+PLAN HOY (adaptativo): ${plan.training.label}${plan.training.hint ? " \u2014 " + plan.training.hint : ""}${plan.why ? ` [motivo: ${plan.why}]` : ""}
+`;
+    const monday = weekStart(todayISO());
+    const wk = planWeek(sessions, events, monday, todayISO());
+    ctx += `
+CUPO SEMANAL (semana del ${monday}). El plan NO es fijo por d\xEDa: se reparte seg\xFAn lo que ya hiciste.
+`;
+    WEEK_QUOTA.forEach((q) => {
+      const hecho = wk.done[q.id];
+      ctx += `- ${q.label}: ${hecho ? `HECHO el ${hecho}` : "PENDIENTE"}
+`;
+    });
+    if (wk.porHacer.length) {
+      ctx += `Reparto propuesto para lo que falta:
+`;
+      wk.days.filter((d) => d >= todayISO()).forEach((d) => {
+        const a = wk.asignado[d];
+        if (!a) return;
+        const desc = a.type === "event" ? `evento: ${a.event.title}` : a.type === "taper" ? `descarga previa a ${a.event.title}` : a.training.label;
+        ctx += `  \xB7 ${d} (${DAY_FULL[dowOf(d)]}): ${desc}
+`;
+      });
+    }
+    const acwr = calcACWR(sessions);
+    if (acwr.listo) {
+      ctx += `
+CARGA (ACWR): ${acwr.ratio.toFixed(2)} \u2014 ${acwr.aguda.toFixed(0)} km-equivalentes en 7 d\xEDas vs base semanal de ${acwr.cronica.toFixed(0)}. Zona: ${acwr.zona}. \xD3ptimo 0,8\u20131,3; sobre 1,5 el riesgo sube (gu\xEDa, no umbral exacto).
+`;
+    } else {
+      ctx += `
+CARGA (ACWR): datos insuficientes (${acwr.diasDeDatos} d\xEDas de registro).
+`;
+    }
+    const metaMaraton = goals.find((g) => g.type === "marathon" && !g.completed);
+    const rm = metaMaraton ? marathonRoadmap(sessions, metaMaraton) : null;
+    if (rm && rm.estaSemana) {
+      ctx += `HOJA DE RUTA MARAT\xD3N: base actual ${rm.base} km/sem, objetivo ${rm.objetivo} km/sem, ${rm.semanasRestantes} semanas a la carrera. Esta semana toca ${rm.estaSemana.km} km (${rm.estaSemana.fase}). Pico previsto ${rm.pico} km. Progresi\xF3n m\xE1x 10% semanal con descarga cada 4 semanas.
+`;
+    }
+    const pl = plyoStatus(sessions, checkins);
+    ctx += `PLIOMETR\xCDA: nivel ${pl.nivel}/3 (${pl.template.contactos} contactos por sesi\xF3n), ${pl.enNivel} sesiones en este nivel, ${pl.total} en total. Esta semana: ${pl.estaSemana}. ${pl.debeBajar ? "BLOQUEADA por dolor o s\xEDntomas recientes." : pl.puedeSubir ? "Lista para subir de nivel." : ""}${pl.diasDesde !== null ? ` \xDAltima hace ${pl.diasDesde} d\xEDas.` : " A\xFAn sin sesiones."}
+`;
+    ctx += `REGLAS DE REPARTO: no repetir el mismo grupo muscular ni impacto en d\xEDas seguidos; el long run va preferentemente s\xE1bado o domingo; si se acumulan pendientes, priorizar long run y gimnasio sobre la sesi\xF3n de calidad.
 `;
     const upcoming = events.filter((e) => !e.completed && daysUntil(e.date) != null && daysUntil(e.date) >= 0 && daysUntil(e.date) <= 14);
     if (upcoming.length) {
