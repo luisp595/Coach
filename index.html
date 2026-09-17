@@ -241,6 +241,121 @@ function plyoStatus(sessions, checkins) {
     sintomas14
   };
 }
+const PATRONES = {
+  "empuje-horizontal": "Empuje horizontal",
+  "traccion-horizontal": "Tracci\xF3n horizontal",
+  "empuje-vertical": "Empuje vertical",
+  "traccion-vertical": "Tracci\xF3n vertical",
+  "hombro-salud": "Hombro y prevenci\xF3n",
+  "rodilla-dominante": "Rodilla dominante",
+  "cadera-dominante": "Cadera dominante",
+  "unilateral-pierna": "Unilateral de pierna",
+  "isquios": "Isquiotibiales",
+  "gluteo": "Gl\xFAteo",
+  "gemelo": "Gemelo y s\xF3leo",
+  "tibial": "Tibial anterior",
+  "aductores": "Aductores",
+  "core-antirotacion": "Core anti-rotaci\xF3n",
+  "core-antiextension": "Core anti-extensi\xF3n",
+  "pliometria": "Pliometr\xEDa"
+};
+const CATALOGO = [
+  // Empuje horizontal
+  { id: "bench", name: "Press banca", pattern: "empuje-horizontal", sets: 4, reps: "6\u20138", rest: "2\u20133 min", hint: "Compound principal." },
+  { id: "bench-db", name: "Press banca con mancuernas", pattern: "empuje-horizontal", sets: 4, reps: "8\u201310", rest: "2 min", hint: "M\xE1s rango, menos carga absoluta." },
+  { id: "bench-incline", name: "Press inclinado", pattern: "empuje-horizontal", sets: 4, reps: "8\u201310", rest: "2 min", hint: "\xC9nfasis en pectoral superior." },
+  { id: "dips", name: "Fondos en paralelas", pattern: "empuje-horizontal", sets: 3, reps: "10\u201312", rest: "90 s", hint: "" },
+  { id: "pushup-w", name: "Flexiones lastradas", pattern: "empuje-horizontal", sets: 3, reps: "10\u201315", rest: "90 s", hint: "Alternativa sin banco." },
+  // Tracción horizontal
+  { id: "row-barbell", name: "Remo con barra", pattern: "traccion-horizontal", sets: 4, reps: "6\u20138", rest: "2\u20133 min", hint: "Espalda gruesa." },
+  { id: "row-db", name: "Remo con mancuerna a una mano", pattern: "traccion-horizontal", sets: 4, reps: "8\u201310 c/lado", rest: "90 s", hint: "Menos carga lumbar." },
+  { id: "row-cable", name: "Remo en polea baja", pattern: "traccion-horizontal", sets: 4, reps: "10\u201312", rest: "90 s", hint: "Tensi\xF3n constante." },
+  { id: "row-t", name: "Remo en barra T", pattern: "traccion-horizontal", sets: 4, reps: "8\u201310", rest: "2 min", hint: "" },
+  { id: "row-inverted", name: "Remo invertido", pattern: "traccion-horizontal", sets: 3, reps: "10\u201315", rest: "90 s", hint: "Peso corporal." },
+  // Empuje vertical
+  { id: "ohp", name: "Press militar de pie", pattern: "empuje-vertical", sets: 3, reps: "8\u201310", rest: "2 min", hint: "" },
+  { id: "ohp-seated", name: "Press militar sentado", pattern: "empuje-vertical", sets: 3, reps: "8\u201310", rest: "2 min", hint: "M\xE1s estable, menos core." },
+  { id: "arnold", name: "Press Arnold", pattern: "empuje-vertical", sets: 3, reps: "10\u201312", rest: "90 s", hint: "" },
+  { id: "ohp-db", name: "Press hombro con mancuernas", pattern: "empuje-vertical", sets: 3, reps: "10\u201312", rest: "90 s", hint: "" },
+  // Tracción vertical
+  { id: "pullup", name: "Dominadas (o jal\xF3n polea)", pattern: "traccion-vertical", sets: 3, reps: "8\u201312", rest: "90 s", hint: "" },
+  { id: "chinup", name: "Dominadas supinas", pattern: "traccion-vertical", sets: 3, reps: "8\u201312", rest: "90 s", hint: "M\xE1s b\xEDceps." },
+  { id: "lat-pulldown", name: "Jal\xF3n al pecho en polea", pattern: "traccion-vertical", sets: 4, reps: "10\u201312", rest: "90 s", hint: "" },
+  { id: "pullup-weighted", name: "Dominadas lastradas", pattern: "traccion-vertical", sets: 4, reps: "5\u20138", rest: "2\u20133 min", hint: "Si ya haces 12 limpias." },
+  // Hombro y prevención
+  { id: "face-pull", name: "Face pulls", pattern: "hombro-salud", sets: 3, reps: "15\u201320", rest: "60 s", hint: "Hombro trasero, prevenci\xF3n." },
+  { id: "rear-delt", name: "P\xE1jaros con mancuernas", pattern: "hombro-salud", sets: 3, reps: "15\u201320", rest: "60 s", hint: "" },
+  { id: "ext-rotation", name: "Rotaci\xF3n externa con banda", pattern: "hombro-salud", sets: 3, reps: "15 c/lado", rest: "45 s", hint: "Manguito rotador." },
+  { id: "ytw", name: "Y-T-W en banco inclinado", pattern: "hombro-salud", sets: 3, reps: "10 de cada", rest: "60 s", hint: "" },
+  // Rodilla dominante
+  { id: "squat", name: "Sentadilla con barra", pattern: "rodilla-dominante", sets: 4, reps: "5\u20138", rest: "3 min", hint: "Principal. No comprometer profundidad." },
+  { id: "front-squat", name: "Sentadilla frontal", pattern: "rodilla-dominante", sets: 4, reps: "5\u20138", rest: "3 min", hint: "M\xE1s cu\xE1driceps y core." },
+  { id: "goblet", name: "Sentadilla goblet", pattern: "rodilla-dominante", sets: 3, reps: "10\u201312", rest: "90 s", hint: "T\xE9cnica y movilidad." },
+  { id: "leg-press", name: "Prensa de piernas", pattern: "rodilla-dominante", sets: 4, reps: "10\u201312", rest: "2 min", hint: "Menos exigencia t\xE9cnica." },
+  { id: "hack-squat", name: "Hack squat", pattern: "rodilla-dominante", sets: 4, reps: "8\u201310", rest: "2 min", hint: "" },
+  // Cadera dominante
+  { id: "rdl", name: "Peso muerto rumano", pattern: "cadera-dominante", sets: 4, reps: "8\u201310", rest: "2\u20133 min", hint: "Isquios y gl\xFAteo." },
+  { id: "deadlift", name: "Peso muerto convencional", pattern: "cadera-dominante", sets: 4, reps: "4\u20136", rest: "3 min", hint: "Alta demanda: no el d\xEDa antes de correr fuerte." },
+  { id: "good-morning", name: "Buenos d\xEDas con barra", pattern: "cadera-dominante", sets: 3, reps: "10\u201312", rest: "2 min", hint: "Carga moderada." },
+  { id: "hip-thrust", name: "Hip thrust con barra", pattern: "cadera-dominante", sets: 4, reps: "8\u201312", rest: "2 min", hint: "Gl\xFAteo con carga alta." },
+  { id: "rdl-single", name: "Peso muerto rumano unipodal", pattern: "cadera-dominante", sets: 3, reps: "8\u201310 c/pierna", rest: "90 s", hint: "Equilibrio y control." },
+  // Unilateral de pierna
+  { id: "bulgarian", name: "Sentadilla b\xFAlgara", pattern: "unilateral-pierna", sets: 3, reps: "8\u201310 c/pierna", rest: "90 s", hint: "Balance L\u2194R." },
+  { id: "step-up", name: "Step-up con peso", pattern: "unilateral-pierna", sets: 3, reps: "8\u201310 c/pierna", rest: "90 s", hint: "Unilateral con control." },
+  { id: "walking-lunge", name: "Zancadas caminando", pattern: "unilateral-pierna", sets: 3, reps: "10 c/pierna", rest: "90 s", hint: "Mancuernas." },
+  { id: "reverse-lunge", name: "Zancada inversa", pattern: "unilateral-pierna", sets: 3, reps: "10 c/pierna", rest: "90 s", hint: "M\xE1s amable con la rodilla." },
+  { id: "step-down", name: "Step-down exc\xE9ntrico", pattern: "unilateral-pierna", sets: 3, reps: "8 c/pierna", rest: "90 s", hint: "Control de la bajada." },
+  // Isquiotibiales
+  { id: "nordic", name: "Nordic curl (isquios)", pattern: "isquios", sets: 3, reps: "6\u20138", rest: "90 s", hint: "Prevenci\xF3n isquiotibial." },
+  { id: "leg-curl", name: "Curl femoral en m\xE1quina", pattern: "isquios", sets: 3, reps: "10\u201312", rest: "90 s", hint: "" },
+  { id: "ghr", name: "Glute-ham raise", pattern: "isquios", sets: 3, reps: "8\u201310", rest: "90 s", hint: "" },
+  { id: "slider-curl", name: "Curl de isquios con deslizadores", pattern: "isquios", sets: 3, reps: "10\u201312", rest: "60 s", hint: "Sin m\xE1quina." },
+  // Glúteo
+  { id: "glute-bridge", name: "Puente gl\xFAteo unipodal", pattern: "gluteo", sets: 3, reps: "10 c/lado", rest: "60 s", hint: "" },
+  { id: "hip-thrust-single", name: "Hip thrust unipodal", pattern: "gluteo", sets: 3, reps: "10 c/lado", rest: "60 s", hint: "" },
+  { id: "kickback", name: "Patada de cadera en polea", pattern: "gluteo", sets: 3, reps: "12\u201315 c/lado", rest: "60 s", hint: "" },
+  { id: "monster-walk", name: "Monster walk con banda", pattern: "gluteo", sets: 3, reps: "15 pasos c/lado", rest: "45 s", hint: "Gl\xFAteo medio." },
+  // Gemelo y sóleo
+  { id: "calf-standing", name: "Elevaci\xF3n tal\xF3n de pie", pattern: "gemelo", sets: 4, reps: "12\u201315", rest: "60 s", hint: "Gemelo." },
+  { id: "calf-seated", name: "Elevaci\xF3n tal\xF3n sentado", pattern: "gemelo", sets: 4, reps: "15\u201320", rest: "60 s", hint: "S\xF3leo. Clave para tolerar carga tibial." },
+  { id: "calf-press", name: "Elevaci\xF3n tal\xF3n en prensa", pattern: "gemelo", sets: 4, reps: "12\u201315", rest: "60 s", hint: "" },
+  { id: "calf-single", name: "Elevaci\xF3n tal\xF3n a una pierna", pattern: "gemelo", sets: 3, reps: "12\u201315 c/lado", rest: "60 s", hint: "Detecta asimetr\xEDas." },
+  // Tibial anterior
+  { id: "tibialis", name: "Elevaci\xF3n de puntas", pattern: "tibial", sets: 3, reps: "15\u201320", rest: "45 s", hint: "Tibial anterior. Anti-periostitis." },
+  { id: "tib-band", name: "Dorsiflexi\xF3n con banda", pattern: "tibial", sets: 3, reps: "15\u201320", rest: "45 s", hint: "" },
+  { id: "heel-walk", name: "Caminata sobre talones", pattern: "tibial", sets: 3, reps: "20 pasos", rest: "45 s", hint: "" },
+  // Aductores
+  { id: "copenhagen", name: "Copenhagen plank", pattern: "aductores", sets: 3, reps: "20\u201330 s c/lado", rest: "45 s", hint: "Aductores. Prevenci\xF3n f\xFAtbol." },
+  { id: "adductor-cable", name: "Aducci\xF3n en polea", pattern: "aductores", sets: 3, reps: "12\u201315 c/lado", rest: "60 s", hint: "" },
+  { id: "sumo-squat", name: "Sentadilla sumo", pattern: "aductores", sets: 3, reps: "10\u201312", rest: "90 s", hint: "" },
+  // Core
+  { id: "pallof", name: "Pallof press", pattern: "core-antirotacion", sets: 3, reps: "10 c/lado", rest: "45 s", hint: "Core anti-rotaci\xF3n." },
+  { id: "plank-side", name: "Plancha lateral", pattern: "core-antirotacion", sets: 3, reps: "30\u201345 s c/lado", rest: "45 s", hint: "" },
+  { id: "dead-bug", name: "Dead bug", pattern: "core-antirotacion", sets: 3, reps: "10 c/lado", rest: "45 s", hint: "" },
+  { id: "suitcase-carry", name: "Paseo del granjero a una mano", pattern: "core-antirotacion", sets: 3, reps: "30 m c/lado", rest: "60 s", hint: "" },
+  { id: "plank", name: "Plancha frontal", pattern: "core-antiextension", sets: 3, reps: "45\u201360 s", rest: "45 s", hint: "" },
+  { id: "ab-wheel", name: "Rueda abdominal", pattern: "core-antiextension", sets: 3, reps: "8\u201312", rest: "60 s", hint: "" },
+  { id: "hollow", name: "Hollow hold", pattern: "core-antiextension", sets: 3, reps: "30\u201345 s", rest: "45 s", hint: "" }
+];
+const EJERCICIOS = {};
+CATALOGO.forEach((e) => {
+  EJERCICIOS[e.id] = e;
+});
+function alternativasDe(ex) {
+  const patron = ex.pattern || EJERCICIOS[ex.id] && EJERCICIOS[ex.id].pattern;
+  if (!patron) return [];
+  return CATALOGO.filter((e) => e.pattern === patron && e.id !== ex.id);
+}
+function ejercicioPorId(id) {
+  return EJERCICIOS[id] || Object.values(GYM_TEMPLATES).flatMap((t) => t.exercises).find((e) => e.id === id) || null;
+}
+function ejerciciosDe(templateId, custom) {
+  const tpl = GYM_TEMPLATES[templateId];
+  if (!tpl) return [];
+  const ids = custom && custom[templateId];
+  if (!ids || !ids.length) return tpl.exercises;
+  return ids.map(ejercicioPorId).filter(Boolean);
+}
 const WEEKLY_TEMPLATE = {
   0: { type: "run-long", label: "Long run", hint: "Pilar de la marat\xF3n. Ritmo conversacional." },
   1: { type: "rest", label: "Descanso o movilidad", hint: "Prehab + estiramientos." },
@@ -253,7 +368,13 @@ const WEEKLY_TEMPLATE = {
 PLYO_LEVELS.forEach((l) => {
   l.contactos = l.exercises.reduce((a, e) => a + e.contacts, 0);
   GYM_TEMPLATES[l.id] = l;
+  l.exercises.forEach((e) => {
+    EJERCICIOS[e.id] = { ...e, pattern: "pliometria" };
+  });
 });
+Object.values(GYM_TEMPLATES).forEach((t) => t.exercises.forEach((e) => {
+  if (!EJERCICIOS[e.id]) EJERCICIOS[e.id] = e;
+}));
 const DAY_SHORT = ["DOM", "LUN", "MAR", "MI\xC9", "JUE", "VIE", "S\xC1B"];
 const DAY_FULL = ["domingo", "lunes", "martes", "mi\xE9rcoles", "jueves", "viernes", "s\xE1bado"];
 const DEFAULT_GOALS = [
@@ -924,6 +1045,7 @@ function App() {
   const [checkins, setCheckins] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [exercisesDone, setExercisesDone] = useState({});
+  const [gymCustom, setGymCustom] = useState({});
   const [chatMessages, setChatMessages] = useState([]);
   const [pendingInput, setPendingInput] = useState("");
   const [activeGymSession, setActiveGymSession] = useState(null);
@@ -944,6 +1066,7 @@ function App() {
       sessionsRef.current = sesionesGuardadas;
       setSessions(sesionesGuardadas);
       setExercisesDone(await loadFromStorage("exercisesDone", {}));
+      setGymCustom(await loadFromStorage("gymCustom", {}));
       setChatMessages(await loadFromStorage("chatMessages", []));
       setUnlocked(await loadFromStorage("unlocked", {}));
       setLoaded(true);
@@ -1001,6 +1124,13 @@ function App() {
     const next = { ...exercisesDone, [date]: nextDay };
     setExercisesDone(next);
     await saveToStorage("exercisesDone", next);
+  };
+  const saveGymCustom = async (templateId, ids) => {
+    const next = { ...gymCustom };
+    if (!ids || !ids.length) delete next[templateId];
+    else next[templateId] = ids;
+    setGymCustom(next);
+    await saveToStorage("gymCustom", next);
   };
   const updateChat = async (m) => {
     setChatMessages(m);
@@ -1074,6 +1204,11 @@ function App() {
       setExercisesDone(next);
       await saveToStorage("exercisesDone", next);
     }
+    if (payload.gymCustom && typeof payload.gymCustom === "object") {
+      const next = mode === "replace" ? payload.gymCustom : { ...payload.gymCustom, ...gymCustom };
+      setGymCustom(next);
+      await saveToStorage("gymCustom", next);
+    }
     if (payload.unlocked && typeof payload.unlocked === "object") {
       const next = mode === "replace" ? payload.unlocked : { ...payload.unlocked, ...unlocked };
       result.unlocked = Object.keys(next).length;
@@ -1124,6 +1259,7 @@ function App() {
       checkins,
       exercisesDone,
       streak,
+      gymCustom,
       achievements,
       unlocked,
       onOpenAchievements: () => setTab("plan"),
@@ -1146,6 +1282,7 @@ function App() {
       checkins,
       sessions,
       exercisesDone,
+      gymCustom,
       pendingInput,
       clearPending: () => setPendingInput(""),
       onAddSession: addSession
@@ -1181,9 +1318,10 @@ function App() {
       events,
       exercisesDone,
       unlocked,
+      gymCustom,
       onImport: importData
     }
-  )), /* @__PURE__ */ React.createElement(TabBar, { C, tab, setTab }), activeGymSession && /* @__PURE__ */ React.createElement(GymSessionOverlay, { C, session: activeGymSession, sessions, onClose: closeGymSession, onFinish: finishGymSession }), showProfile && /* @__PURE__ */ React.createElement(ProfileModal, { C, profile, sessions, achievements, onSave: persistProfile, onClose: () => setShowProfile(false) }), celebrating && /* @__PURE__ */ React.createElement(AchievementToast, { C, achievement: celebrating, onClose: () => setCelebrating(null) }));
+  )), /* @__PURE__ */ React.createElement(TabBar, { C, tab, setTab }), activeGymSession && /* @__PURE__ */ React.createElement(GymSessionOverlay, { C, session: activeGymSession, sessions, gymCustom, onSaveCustom: saveGymCustom, onClose: closeGymSession, onFinish: finishGymSession }), showProfile && /* @__PURE__ */ React.createElement(ProfileModal, { C, profile, sessions, achievements, onSave: persistProfile, onClose: () => setShowProfile(false) }), celebrating && /* @__PURE__ */ React.createElement(AchievementToast, { C, achievement: celebrating, onClose: () => setCelebrating(null) }));
 }
 function GlobalStyles() {
   return /* @__PURE__ */ React.createElement("style", null, `
@@ -1295,7 +1433,7 @@ function Header({ C, profile, streak, onProfileClick }) {
     letterSpacing: "0.02em"
   } }, initials))));
 }
-function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, streak, achievements, unlocked, onOpenAchievements, askCoach, onSaveCheckin, onToggleExercise, onAddSession, onStartGym }) {
+function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, streak, gymCustom, achievements, unlocked, onOpenAchievements, askCoach, onSaveCheckin, onToggleExercise, onAddSession, onStartGym }) {
   const [showCheckin, setShowCheckin] = useState(false);
   const [showSession, setShowSession] = useState(false);
   const latest = checkins[0];
@@ -1321,7 +1459,7 @@ function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, str
     }
     return arr;
   }, [events]);
-  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { className: "fade-in", style: { marginBottom: "2px" } }, /* @__PURE__ */ React.createElement(Label, null, (/* @__PURE__ */ new Date()).toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "28px", color: C.ink, marginTop: "4px", lineHeight: 1 } }, greeting.toUpperCase())), /* @__PURE__ */ React.createElement(TodayCard, { C, plan, onStartGym, askCoach, profile }), /* @__PURE__ */ React.createElement(Card, { C, style: { background: wp.pct >= 80 ? C.accentBg : C.card, border: `1px solid ${wp.pct >= 80 ? C.accentBg : C.border}` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, { color: wp.pct >= 80 ? C.accentText : C.inkMuted }, "Semana en curso"), streak > 0 && /* @__PURE__ */ React.createElement(Label, { color: wp.pct >= 80 ? C.accentText : C.accent }, "\u{1F525} ", streak, " ", streak === 1 ? "SEMANA" : "SEMANAS")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "12px", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(DisplayNum, { value: `${wp.met}/${wp.required}`, size: 38, color: wp.pct >= 80 ? C.accentText : C.ink }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: wp.pct >= 80 ? C.accentText : C.inkMuted, fontWeight: 500, opacity: 0.9 } }, "sesiones planificadas")), /* @__PURE__ */ React.createElement("div", { style: { height: "8px", background: wp.pct >= 80 ? "rgba(0,0,0,0.08)" : C.surface, borderRadius: "4px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { width: `${Math.min(100, wp.pct)}%`, height: "100%", background: wp.pct >= 80 ? C.accent : C.ink, transition: "width 0.4s" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: wp.pct >= 80 ? C.accentText : C.inkMuted, marginTop: "8px", fontWeight: 500 } }, wp.pct >= 100 ? "\u2713 Semana completa" : wp.pct >= 80 ? "\u2713 Semana cumplida (80%+)" : streak > 0 ? `Faltan ${Math.max(0, Math.ceil(wp.required * 0.8) - wp.met)} para mantener la racha` : "Cumple 80% de la semana para arrancar tu racha"), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "14px", paddingTop: "14px", borderTop: `1px solid ${wp.pct >= 80 ? "rgba(0,0,0,0.08)" : C.border}` } }, WEEK_QUOTA.map((q) => {
+  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { className: "fade-in", style: { marginBottom: "2px" } }, /* @__PURE__ */ React.createElement(Label, null, (/* @__PURE__ */ new Date()).toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "28px", color: C.ink, marginTop: "4px", lineHeight: 1 } }, greeting.toUpperCase())), /* @__PURE__ */ React.createElement(TodayCard, { C, plan, onStartGym, askCoach, profile, gymCustom }), /* @__PURE__ */ React.createElement(Card, { C, style: { background: wp.pct >= 80 ? C.accentBg : C.card, border: `1px solid ${wp.pct >= 80 ? C.accentBg : C.border}` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, { color: wp.pct >= 80 ? C.accentText : C.inkMuted }, "Semana en curso"), streak > 0 && /* @__PURE__ */ React.createElement(Label, { color: wp.pct >= 80 ? C.accentText : C.accent }, "\u{1F525} ", streak, " ", streak === 1 ? "SEMANA" : "SEMANAS")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "12px", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(DisplayNum, { value: `${wp.met}/${wp.required}`, size: 38, color: wp.pct >= 80 ? C.accentText : C.ink }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: wp.pct >= 80 ? C.accentText : C.inkMuted, fontWeight: 500, opacity: 0.9 } }, "sesiones planificadas")), /* @__PURE__ */ React.createElement("div", { style: { height: "8px", background: wp.pct >= 80 ? "rgba(0,0,0,0.08)" : C.surface, borderRadius: "4px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { width: `${Math.min(100, wp.pct)}%`, height: "100%", background: wp.pct >= 80 ? C.accent : C.ink, transition: "width 0.4s" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: wp.pct >= 80 ? C.accentText : C.inkMuted, marginTop: "8px", fontWeight: 500 } }, wp.pct >= 100 ? "\u2713 Semana completa" : wp.pct >= 80 ? "\u2713 Semana cumplida (80%+)" : streak > 0 ? `Faltan ${Math.max(0, Math.ceil(wp.required * 0.8) - wp.met)} para mantener la racha` : "Cumple 80% de la semana para arrancar tu racha"), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "14px", paddingTop: "14px", borderTop: `1px solid ${wp.pct >= 80 ? "rgba(0,0,0,0.08)" : C.border}` } }, WEEK_QUOTA.map((q) => {
     const hecho = wp.done[q.id];
     return /* @__PURE__ */ React.createElement("div", { key: q.id, style: { display: "flex", alignItems: "center", gap: "9px", padding: "4px 0" } }, /* @__PURE__ */ React.createElement("div", { style: { width: "14px", height: "14px", flexShrink: 0, borderRadius: "4px", background: hecho ? C.success : "transparent", border: `1.5px solid ${hecho ? C.success : C.borderStrong}`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "9px", fontWeight: 700 } }, hecho ? "\u2713" : ""), /* @__PURE__ */ React.createElement("span", { style: { flex: 1, fontSize: "12px", color: hecho ? C.inkMuted : C.ink, fontWeight: 500, textDecoration: hecho ? "line-through" : "none" } }, q.label), hecho && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "10px", color: C.inkFaint, fontWeight: 600 } }, formatDate(hecho)));
   }))), marathon && /* @__PURE__ */ React.createElement(MarathonCard, { C, goal: marathon, weekKm: weekKmRun, askCoach, roadmap }), /* @__PURE__ */ React.createElement(LoadCard, { C, acwr, askCoach }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, null, "Pr\xF3ximos 7 d\xEDas")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "4px", margin: "0 -4px", padding: "0 4px 4px" } }, upcoming7.map((d) => /* @__PURE__ */ React.createElement(DayChip, { key: d.date, d, C })))), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "14px" } }, /* @__PURE__ */ React.createElement(Label, null, "Estado de hoy"), /* @__PURE__ */ React.createElement(Label, { color: hasCheckinToday ? C.success : C.inkFaint }, hasCheckinToday ? "\u2713 Registrado" : "Pendiente")), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" } }, /* @__PURE__ */ React.createElement(StatMini, { label: "Energ\xEDa", value: latest?.energy ?? "\u2014", C }), /* @__PURE__ */ React.createElement(StatMini, { label: "Sue\xF1o", value: latest?.sleep ?? "\u2014", C }), /* @__PURE__ */ React.createElement(StatMini, { label: "Tibia", value: latest?.painTibia ?? "\u2014", C, warn: (latest?.painTibia ?? 0) >= 4 }), /* @__PURE__ */ React.createElement(StatMini, { label: "Prehab", value: `${prehabPct}%`, C, good: prehabPct >= 60 })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", marginTop: "14px" } }, /* @__PURE__ */ React.createElement(GhostButton, { onClick: () => setShowCheckin(!showCheckin), C, style: { flex: 1 } }, showCheckin ? "Cerrar" : "Check-in"), /* @__PURE__ */ React.createElement(GhostButton, { onClick: () => setShowSession(!showSession), C, style: { flex: 1 } }, showSession ? "Cerrar" : "+ Sesi\xF3n")), showCheckin && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "14px", paddingTop: "14px", borderTop: `1px solid ${C.border}` } }, /* @__PURE__ */ React.createElement(CheckinForm, { C, existing: hasCheckinToday ? latest : null, onSave: async (c) => {
@@ -1333,6 +1471,8 @@ function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, str
   } }))), raceGoal && /* @__PURE__ */ React.createElement(RunningCard, { C, raceGoal, weekKm: weekKmRun, weeklyTarget: marathon?.weeklyKmTarget || 40, askCoach }), /* @__PURE__ */ React.createElement(MountainCard, { C, sessions, askCoach }), /* @__PURE__ */ React.createElement(FootballCard, { C, events, sessions, askCoach }), /* @__PURE__ */ React.createElement(TreadmillCard, { C, askCoach }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, null, "Gimnasio"), /* @__PURE__ */ React.createElement(Label, { color: C.inkMuted }, sessions.filter((s) => s.type === "gym" && daysAgo(s.date) <= 7).length, " ESTA SEMANA")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "8px" } }, Object.values(GYM_TEMPLATES).filter((tpl) => !String(tpl.id).startsWith("plyo_")).map((tpl) => {
     const last = sessions.find((s) => s.type === "gym" && s.gymTemplate === tpl.id);
     const isToday = plan.type === "default" && plan.training.type === "gym" && plan.training.gymId === tpl.id;
+    const lista = ejerciciosDe(tpl.id, gymCustom);
+    const editada = !!(gymCustom && gymCustom[tpl.id]);
     return /* @__PURE__ */ React.createElement("button", { key: tpl.id, onClick: () => onStartGym(tpl.id), style: {
       display: "flex",
       alignItems: "center",
@@ -1346,7 +1486,7 @@ function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, str
       borderRadius: "10px",
       color: C.ink,
       fontFamily: FONT_BODY
-    } }, /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "17px", color: isToday ? C.accentText : C.ink, lineHeight: 1.1, textTransform: "uppercase" } }, tpl.name.replace("\xB7", "\xB7")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: isToday ? C.accentText : C.inkMuted, marginTop: "3px", fontWeight: 500, opacity: 0.9 } }, tpl.exercises.length, " ejercicios", last ? ` \xB7 \xFAltima ${formatDate(last.date)}` : " \xB7 sin registros", isToday ? " \xB7 HOY" : "")), /* @__PURE__ */ React.createElement("div", { style: { flexShrink: 0, color: isToday ? C.accent : C.inkFaint, fontSize: "17px", fontWeight: 700 } }, "\u25B8"));
+    } }, /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "17px", color: isToday ? C.accentText : C.ink, lineHeight: 1.1, textTransform: "uppercase" } }, tpl.name.replace("\xB7", "\xB7")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: isToday ? C.accentText : C.inkMuted, marginTop: "3px", fontWeight: 500, opacity: 0.9 } }, lista.length, " ejercicios", editada ? " \xB7 personalizada" : "", last ? ` \xB7 \xFAltima ${formatDate(last.date)}` : " \xB7 sin registros", isToday ? " \xB7 HOY" : "")), /* @__PURE__ */ React.createElement("div", { style: { flexShrink: 0, color: isToday ? C.accent : C.inkFaint, fontSize: "17px", fontWeight: 700 } }, "\u25B8"));
   }))), /* @__PURE__ */ React.createElement(PlyoCard, { C, plyo, askCoach, onStartGym }), achievements && (() => {
     const done = achievements.filter((a) => a.unlocked);
     const cerca = achievements.filter((a) => !a.unlocked && !a.hideProgress && a.pct > 0).sort((a, b) => b.pct - a.pct).slice(0, 2);
@@ -1371,13 +1511,13 @@ function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, str
       fontSize: "12px",
       cursor: "pointer"
     } }, /* @__PURE__ */ React.createElement("div", { style: { width: "14px", height: "14px", flexShrink: 0, marginTop: "2px", background: done ? C.accent : "transparent", border: `1.5px solid ${done ? C.accent : C.borderStrong}`, borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "10px" } }, done ? "\u2713" : ""), /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 500, lineHeight: 1.25 } }, ex.name), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "14px", color: done ? C.accentText : C.accent, marginTop: "3px", letterSpacing: "0.03em" } }, ex.sets)));
-  }))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", margin: "8px 0 4px", color: C.inkFaint, fontFamily: FONT_MONO, fontSize: "10px", letterSpacing: "0.1em" } }, "coach \xB7 v5.1 \xB7 15 sep"));
+  }))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", margin: "8px 0 4px", color: C.inkFaint, fontFamily: FONT_MONO, fontSize: "10px", letterSpacing: "0.1em" } }, "coach \xB7 v5.3 \xB7 16 sep"));
 }
 function StatMini({ label, value, C, warn, good }) {
   const color = warn ? C.danger : good ? C.success : C.ink;
   return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(DisplayNum, { value, size: 22, color }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.inkMuted, marginTop: "4px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 500 } }, label));
 }
-function TodayCard({ C, plan, onStartGym, askCoach, profile }) {
+function TodayCard({ C, plan, onStartGym, askCoach, profile, gymCustom }) {
   let kicker, title, subtitle, hint, cta, background, textColor, kickerColor, gymTemplate = null, showAccent = false;
   if (plan.type === "event") {
     kicker = `EVENTO \xB7 ${EVENT_TYPES[plan.event.type].label.toUpperCase()}`;
@@ -1402,7 +1542,7 @@ function TodayCard({ C, plan, onStartGym, askCoach, profile }) {
     const t = plan.training;
     if (t.type === "gym") {
       const gymTpl = GYM_TEMPLATES[t.gymId];
-      gymTemplate = gymTpl;
+      gymTemplate = { ...gymTpl, exercises: ejerciciosDe(t.gymId, gymCustom) };
       kicker = "GIMNASIO \xB7 HOY";
       title = gymTpl.name.split("\xB7")[1]?.trim().toUpperCase() || gymTpl.name.toUpperCase();
       subtitle = `${gymTpl.exercises.length} EJERCICIOS \xB7 ~60 MIN`;
@@ -1515,8 +1655,15 @@ function TreadmillCard({ C, askCoach }) {
   return /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: "14px" } }, "Cinta \xB7 configurar"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-around", marginBottom: "16px" } }, dial("KM/H", speed, setSpeed, 6, 20), dial("MIN", duration, setDuration, 10, 90, 5)), /* @__PURE__ */ React.createElement(GhostButton, { onClick: () => askCoach(`Voy a hacer ${duration} min en cinta a base ~${speed} km/h. Dame estructura: calentamiento, trabajo y enfriamiento con velocidades enteras exactas.`), C, style: { width: "100%" } }, "Pedir plan al coach"));
 }
 const CLAVE_SESION_ACTIVA = "sesionActiva";
-function GymSessionOverlay({ C, session, sessions, onClose, onFinish }) {
-  const template = GYM_TEMPLATES[session.templateId];
+function GymSessionOverlay({ C, session, sessions, gymCustom, onSaveCustom, onClose, onFinish }) {
+  const base = GYM_TEMPLATES[session.templateId];
+  const [ejercicios, setEjercicios] = useState(() => ejerciciosDe(session.templateId, gymCustom));
+  const [editando, setEditando] = useState(false);
+  const [cambiando, setCambiando] = useState(null);
+  const [anadiendo, setAnadiendo] = useState(false);
+  const [guardadoPlantilla, setGuardadoPlantilla] = useState(false);
+  const esPliometria = String(session.templateId).startsWith("plyo_");
+  const template = { ...base, exercises: ejercicios };
   const [log, setLog] = useState({});
   const [notes, setNotes] = useState("");
   const [expandedId, setExpandedId] = useState(template.exercises[0].id);
@@ -1528,13 +1675,17 @@ function GymSessionOverlay({ C, session, sessions, onClose, onFinish }) {
       const guardado = await loadFromStorage(CLAVE_SESION_ACTIVA, null);
       if (cancelado) return;
       if (guardado && guardado.templateId === session.templateId && guardado.log) {
+        if (guardado.ejercicios && guardado.ejercicios.length) {
+          const lista = guardado.ejercicios.map(ejercicioPorId).filter(Boolean);
+          if (lista.length) setEjercicios(lista);
+        }
         setLog(guardado.log);
         setNotes(guardado.notes || "");
         setListo(true);
         return;
       }
       const initial = {};
-      template.exercises.forEach((ex) => {
+      ejercicios.forEach((ex) => {
         const prev = lastPerformance(sessions, ex);
         const peso = prev ? prev.subir ? prev.sugerido : prev.peso : "";
         initial[ex.id] = Array.from({ length: ex.sets }, () => ({ reps: "", weight: peso || "", done: false }));
@@ -1546,10 +1697,49 @@ function GymSessionOverlay({ C, session, sessions, onClose, onFinish }) {
       cancelado = true;
     };
   }, [session.templateId]);
+  const aplicarLista = (nueva) => {
+    setEjercicios(nueva);
+    setLog((prev) => {
+      const copia = {};
+      nueva.forEach((ex) => {
+        if (prev[ex.id]) {
+          copia[ex.id] = prev[ex.id];
+          return;
+        }
+        const anterior = lastPerformance(sessions, ex);
+        const peso = anterior ? anterior.subir ? anterior.sugerido : anterior.peso : "";
+        copia[ex.id] = Array.from({ length: ex.sets }, () => ({ reps: "", weight: peso || "", done: false }));
+      });
+      return copia;
+    });
+    setExpandedId((id) => nueva.some((e) => e.id === id) ? id : nueva[0] && nueva[0].id);
+  };
+  const cambiarPor = (viejoId, nuevo) => {
+    aplicarLista(ejercicios.map((e) => e.id === viejoId ? nuevo : e));
+    setCambiando(null);
+  };
+  const quitar = (id) => {
+    if (ejercicios.length > 1) aplicarLista(ejercicios.filter((e) => e.id !== id));
+  };
+  const anadir = (ex) => {
+    aplicarLista([...ejercicios, ex]);
+    setAnadiendo(false);
+  };
+  const restaurar = () => {
+    aplicarLista(base.exercises);
+    onSaveCustom(session.templateId, null);
+    setGuardadoPlantilla(false);
+  };
+  const guardarComoPlantilla = async () => {
+    await onSaveCustom(session.templateId, ejercicios.map((e) => e.id));
+    setGuardadoPlantilla(true);
+    setTimeout(() => setGuardadoPlantilla(false), 2200);
+  };
+  const personalizada = JSON.stringify(ejercicios.map((e) => e.id)) !== JSON.stringify(base.exercises.map((e) => e.id));
   useEffect(() => {
     if (!listo) return;
-    saveToStorage(CLAVE_SESION_ACTIVA, { templateId: session.templateId, startedAt: session.startedAt, log, notes });
-  }, [log, notes, listo]);
+    saveToStorage(CLAVE_SESION_ACTIVA, { templateId: session.templateId, startedAt: session.startedAt, log, notes, ejercicios: ejercicios.map((e) => e.id) });
+  }, [log, notes, listo, ejercicios]);
   const updateSet = (exId, setIdx, field, value) => {
     setLog((prev) => {
       const copy = { ...prev };
@@ -1589,7 +1779,11 @@ function GymSessionOverlay({ C, session, sessions, onClose, onFinish }) {
     saveToStorage(CLAVE_SESION_ACTIVA, null);
     onFinish(cleaned, notes);
   };
-  return /* @__PURE__ */ React.createElement("div", { className: "slide-up", style: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: C.bg, zIndex: 200, display: "flex", flexDirection: "column", overflowY: "auto" } }, /* @__PURE__ */ React.createElement(GlobalStyles, null), /* @__PURE__ */ React.createElement("div", { style: { padding: "18px 16px", borderBottom: `1px solid ${C.border}`, background: C.bg, position: "sticky", top: 0, zIndex: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Label, { color: C.accent }, "SESI\xD3N ACTIVA"), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "24px", color: C.ink, marginTop: "4px", lineHeight: 1 } }, template.name.toUpperCase())), /* @__PURE__ */ React.createElement("button", { onClick: tryClose, style: { background: "transparent", border: `1px solid ${C.border}`, color: C.inkMuted, padding: "8px 12px", borderRadius: "8px", fontFamily: FONT_DISPLAY, fontSize: "12px", letterSpacing: "0.08em", cursor: "pointer" } }, "\u2715 CERRAR")), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "12px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: "6px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: C.inkMuted, fontWeight: 600, letterSpacing: "0.08em" } }, "PROGRESO", loggedSets > 0 ? " \xB7 GUARDADO" : ""), /* @__PURE__ */ React.createElement("span", { className: "display", style: { fontSize: "15px", color: C.ink } }, doneSets, "/", totalSets, " \xB7 ", pct, "%")), /* @__PURE__ */ React.createElement("div", { style: { height: "5px", background: C.surface, borderRadius: "3px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { width: `${pct}%`, height: "100%", background: C.accent, transition: "width 0.3s" } })))), /* @__PURE__ */ React.createElement("div", { style: { padding: "16px", flex: 1, maxWidth: "640px", margin: "0 auto", width: "100%" } }, template.exercises.map((ex, idx) => /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "slide-up", style: { position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: C.bg, zIndex: 200, display: "flex", flexDirection: "column", overflowY: "auto" } }, /* @__PURE__ */ React.createElement(GlobalStyles, null), /* @__PURE__ */ React.createElement("div", { style: { padding: "18px 16px", borderBottom: `1px solid ${C.border}`, background: C.bg, position: "sticky", top: 0, zIndex: 10 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Label, { color: C.accent }, "SESI\xD3N ACTIVA"), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "24px", color: C.ink, marginTop: "4px", lineHeight: 1 } }, template.name.toUpperCase())), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px" } }, !esPliometria && /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    setEditando(!editando);
+    setCambiando(null);
+    setAnadiendo(false);
+  }, style: { background: editando ? C.ink : "transparent", border: `1px solid ${editando ? C.ink : C.border}`, color: editando ? C.bg : C.inkMuted, padding: "8px 12px", borderRadius: "8px", fontFamily: FONT_DISPLAY, fontSize: "12px", letterSpacing: "0.08em", cursor: "pointer", fontWeight: 700 } }, editando ? "LISTO" : "\u270E EDITAR"), /* @__PURE__ */ React.createElement("button", { onClick: tryClose, style: { background: "transparent", border: `1px solid ${C.border}`, color: C.inkMuted, padding: "8px 12px", borderRadius: "8px", fontFamily: FONT_DISPLAY, fontSize: "12px", letterSpacing: "0.08em", cursor: "pointer" } }, "\u2715"))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "12px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: "6px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: C.inkMuted, fontWeight: 600, letterSpacing: "0.08em" } }, "PROGRESO", loggedSets > 0 ? " \xB7 GUARDADO" : ""), /* @__PURE__ */ React.createElement("span", { className: "display", style: { fontSize: "15px", color: C.ink } }, doneSets, "/", totalSets, " \xB7 ", pct, "%")), /* @__PURE__ */ React.createElement("div", { style: { height: "5px", background: C.surface, borderRadius: "3px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { width: `${pct}%`, height: "100%", background: C.accent, transition: "width 0.3s" } })))), /* @__PURE__ */ React.createElement("div", { style: { padding: "16px", flex: 1, maxWidth: "640px", margin: "0 auto", width: "100%" } }, editando && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "14px", padding: "13px 15px", background: C.surface, borderRadius: "11px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkDim, lineHeight: 1.45 } }, "Cambia, quita o a\xF1ade ejercicios. Las alternativas respetan el mismo patr\xF3n de movimiento, as\xED la sesi\xF3n mantiene su estructura."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", marginTop: "11px", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: () => setAnadiendo(!anadiendo), style: { flex: 1, minWidth: "130px" } }, anadiendo ? "Cerrar" : "+ A\xF1adir ejercicio"), personalizada && /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: restaurar, style: { flex: 1, minWidth: "130px" } }, "Restaurar original")), personalizada && /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: guardarComoPlantilla, style: { width: "100%", marginTop: "8px" } }, guardadoPlantilla ? "Guardado \u2713" : "Guardar como mi plantilla"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.inkMuted, marginTop: "9px", lineHeight: 1.5 } }, personalizada ? "Sin guardar, los cambios valen solo para esta sesi\xF3n." : "Est\xE1s usando la plantilla original.")), editando && anadiendo && /* @__PURE__ */ React.createElement(SelectorEjercicio, { C, titulo: "A\xF1adir ejercicio", lista: CATALOGO.filter((e) => !ejercicios.some((x) => x.id === e.id)), onElegir: anadir, onCerrar: () => setAnadiendo(false), agrupar: true }), template.exercises.map((ex, idx) => /* @__PURE__ */ React.createElement(
     ExerciseBlock,
     {
       key: ex.id,
@@ -1601,19 +1795,57 @@ function GymSessionOverlay({ C, session, sessions, onClose, onFinish }) {
       prev: lastPerformance(sessions, ex),
       onExpand: () => setExpandedId(expandedId === ex.id ? null : ex.id),
       onUpdate: (setIdx, field, value) => updateSet(ex.id, setIdx, field, value),
-      onMarkDone: (setIdx) => markDone(ex.id, setIdx)
+      onMarkDone: (setIdx) => markDone(ex.id, setIdx),
+      editando,
+      onCambiar: () => setCambiando(cambiando === ex.id ? null : ex.id),
+      onQuitar: ejercicios.length > 1 ? () => quitar(ex.id) : null
     }
-  )), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "20px" } }, /* @__PURE__ */ React.createElement(FormField, { label: "Notas de la sesi\xF3n", C }, /* @__PURE__ */ React.createElement(FormInput, { C, value: notes, onChange: setNotes, placeholder: "Sensaciones, cargas, ajustes\u2026", multiline: true }))), confirmando && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "16px", padding: "13px 15px", background: confirmando === "cerrar" ? C.dangerBg : C.warningBg, border: `1px solid ${confirmando === "cerrar" ? C.danger : C.warning}`, borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: C.ink, lineHeight: 1.45, fontWeight: 500 } }, confirmando === "cerrar" ? `Tienes ${loggedSets} ${loggedSets === 1 ? "serie registrada" : "series registradas"}. Si sales, se descartan.` : "No registraste ninguna serie. \xBFGuardar la sesi\xF3n igual?"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", marginTop: "10px" } }, /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: () => setConfirmando(null), style: { flex: 1 } }, "Volver"), confirmando === "cerrar" ? /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: tryClose, style: { flex: 1, borderColor: C.danger, color: C.danger } }, "Descartar") : /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: finish, style: { flex: 1 } }, "Guardar"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px", marginTop: "20px", marginBottom: "20px" } }, /* @__PURE__ */ React.createElement(GhostButton, { onClick: tryClose, C, style: { flex: 1 } }, "Cancelar"), /* @__PURE__ */ React.createElement(AccentButton, { onClick: finish, C, style: { flex: 2 } }, "Finalizar"))));
+  )), cambiando && editando && (() => {
+    const ex = ejercicios.find((e) => e.id === cambiando);
+    if (!ex) return null;
+    const alts = alternativasDe(ex).filter((a) => !ejercicios.some((x) => x.id === a.id));
+    return /* @__PURE__ */ React.createElement(
+      SelectorEjercicio,
+      {
+        C,
+        titulo: `Cambiar ${ex.name}`,
+        subtitulo: PATRONES[ex.pattern || (EJERCICIOS[ex.id] || {}).pattern] || "",
+        lista: alts,
+        vacio: "No hay alternativas de este patr\xF3n sin usar.",
+        onElegir: (nuevo) => cambiarPor(ex.id, nuevo),
+        onCerrar: () => setCambiando(null)
+      }
+    );
+  })(), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "20px" } }, /* @__PURE__ */ React.createElement(FormField, { label: "Notas de la sesi\xF3n", C }, /* @__PURE__ */ React.createElement(FormInput, { C, value: notes, onChange: setNotes, placeholder: "Sensaciones, cargas, ajustes\u2026", multiline: true }))), confirmando && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "16px", padding: "13px 15px", background: confirmando === "cerrar" ? C.dangerBg : C.warningBg, border: `1px solid ${confirmando === "cerrar" ? C.danger : C.warning}`, borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: C.ink, lineHeight: 1.45, fontWeight: 500 } }, confirmando === "cerrar" ? `Tienes ${loggedSets} ${loggedSets === 1 ? "serie registrada" : "series registradas"}. Si sales, se descartan.` : "No registraste ninguna serie. \xBFGuardar la sesi\xF3n igual?"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", marginTop: "10px" } }, /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: () => setConfirmando(null), style: { flex: 1 } }, "Volver"), confirmando === "cerrar" ? /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: tryClose, style: { flex: 1, borderColor: C.danger, color: C.danger } }, "Descartar") : /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: finish, style: { flex: 1 } }, "Guardar"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px", marginTop: "20px", marginBottom: "20px" } }, /* @__PURE__ */ React.createElement(GhostButton, { onClick: tryClose, C, style: { flex: 1 } }, "Cancelar"), /* @__PURE__ */ React.createElement(AccentButton, { onClick: finish, C, style: { flex: 2 } }, "Finalizar"))));
 }
-function ExerciseBlock({ C, ex, idx, sets, expanded, onExpand, onUpdate, onMarkDone, prev }) {
+function SelectorEjercicio({ C, titulo, subtitulo, lista, onElegir, onCerrar, vacio, agrupar }) {
+  const grupos = {};
+  lista.forEach((e) => {
+    (grupos[e.pattern] = grupos[e.pattern] || []).push(e);
+  });
+  const claves = Object.keys(grupos);
+  return /* @__PURE__ */ React.createElement("div", { className: "fade-in", style: { background: C.card, border: `1px solid ${C.accent}`, borderRadius: "12px", padding: "14px", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "10px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "16px", color: C.ink, textTransform: "uppercase", lineHeight: 1.1 } }, titulo), subtitulo && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.accent, marginTop: "3px", fontWeight: 600 } }, subtitulo)), /* @__PURE__ */ React.createElement("button", { onClick: onCerrar, style: { background: "none", border: "none", color: C.inkMuted, fontSize: "18px", cursor: "pointer", padding: 0 } }, "\xD7")), lista.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkMuted } }, vacio || "Nada disponible."), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: "320px", overflowY: "auto" } }, claves.map((k) => /* @__PURE__ */ React.createElement("div", { key: k, style: { marginBottom: "10px" } }, agrupar && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.inkMuted, letterSpacing: "0.08em", fontWeight: 700, margin: "8px 0 6px" } }, (PATRONES[k] || k).toUpperCase()), grupos[k].map((e) => /* @__PURE__ */ React.createElement("button", { key: e.id, onClick: () => onElegir(e), style: {
+    width: "100%",
+    textAlign: "left",
+    padding: "11px 12px",
+    marginBottom: "5px",
+    background: C.surface,
+    border: `1px solid ${C.border}`,
+    borderRadius: "9px",
+    cursor: "pointer",
+    fontFamily: FONT_BODY,
+    color: C.ink
+  } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: 600 } }, e.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "2px" } }, e.sets, " \xD7 ", e.reps, " \xB7 descanso ", e.rest, e.hint ? " \xB7 " + e.hint : "")))))));
+}
+function ExerciseBlock({ C, ex, idx, sets, expanded, onExpand, onUpdate, onMarkDone, prev, editando, onCambiar, onQuitar }) {
   const doneCount = sets.filter((s) => s.done).length;
   const allDone = doneCount === sets.length && sets.length > 0;
-  return /* @__PURE__ */ React.createElement("div", { style: { background: C.card, border: `1px solid ${allDone ? C.success : C.border}`, borderRadius: "12px", marginBottom: "10px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("button", { onClick: onExpand, style: { width: "100%", textAlign: "left", padding: "14px 16px", background: "transparent", border: "none", color: C.ink, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "10px" } }, /* @__PURE__ */ React.createElement("span", { className: "display", style: { fontSize: "18px", color: C.inkFaint } }, String(idx + 1).padStart(2, "0")), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "14px", fontWeight: 600, color: C.ink } }, ex.name)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "3px", fontWeight: 500, letterSpacing: "0.03em" } }, ex.sets, " \xD7 ", ex.reps, " \xB7 descanso ", ex.rest)), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "14px", color: allDone ? C.success : C.accent } }, doneCount, "/", sets.length)), expanded && /* @__PURE__ */ React.createElement("div", { style: { padding: "0 16px 16px", borderTop: `1px solid ${C.border}` } }, ex.hint && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, fontStyle: "italic", margin: "10px 0", lineHeight: 1.4 } }, ex.hint), prev && /* @__PURE__ */ React.createElement("div", { style: { margin: "10px 0", padding: "10px 12px", background: prev.subir ? C.accentBg : C.surface, borderRadius: "8px", border: prev.subir ? `1px solid ${C.accent}` : "none" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: prev.subir ? C.accentText : C.inkMuted, letterSpacing: "0.08em", fontWeight: 700 } }, prev.subir ? "\u25B2 TOCA SUBIR CARGA" : `\xDALTIMA VEZ \xB7 ${formatDate(prev.date)}`), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: prev.subir ? C.accentText : C.inkDim, marginTop: "4px", fontFamily: FONT_MONO } }, prev.sets.map((x) => `${x.reps || "?"}\xD7${x.weight || 0}kg`).join(" \xB7 ")), prev.subir && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.accentText, marginTop: "5px", fontWeight: 600 } }, "Completaste ", prev.tope, " reps en todas las series \u2192 sube a ", prev.sugerido, " kg")), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "30px 1fr 1fr 42px", gap: "8px", fontSize: "10px", color: C.inkMuted, letterSpacing: "0.08em", fontWeight: 600, marginBottom: "8px", paddingBottom: "6px", borderBottom: `1px solid ${C.border}` } }, /* @__PURE__ */ React.createElement("div", null, "SET"), /* @__PURE__ */ React.createElement("div", null, "REPS"), /* @__PURE__ */ React.createElement("div", null, "KG"), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, "\u2713")), sets.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "grid", gridTemplateColumns: "30px 1fr 1fr 42px", gap: "8px", alignItems: "center", padding: "5px 0" } }, /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "15px", color: C.inkDim } }, i + 1), /* @__PURE__ */ React.createElement("input", { inputMode: "numeric", pattern: "[0-9]*", value: s.reps, onChange: (e) => onUpdate(i, "reps", e.target.value.replace(/\D/g, "")), placeholder: "\u2014", style: setInputStyle(s.done, C) }), /* @__PURE__ */ React.createElement("input", { inputMode: "decimal", value: s.weight, onChange: (e) => onUpdate(i, "weight", e.target.value.replace(/[^0-9.]/g, "")), placeholder: "\u2014", style: setInputStyle(s.done, C) }), /* @__PURE__ */ React.createElement("button", { onClick: () => onMarkDone(i), style: { padding: "8px", background: s.done ? C.success : "transparent", border: `1.5px solid ${s.done ? C.success : C.borderStrong}`, borderRadius: "6px", color: s.done ? "#FFFFFF" : C.inkMuted, cursor: "pointer", fontSize: "12px", fontWeight: 700 } }, s.done ? "\u2713" : " "))))));
+  return /* @__PURE__ */ React.createElement("div", { style: { background: C.card, border: `1px solid ${allDone ? C.success : C.border}`, borderRadius: "12px", marginBottom: "10px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("button", { onClick: onExpand, style: { width: "100%", textAlign: "left", padding: "14px 16px", background: "transparent", border: "none", color: C.ink, display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "10px" } }, /* @__PURE__ */ React.createElement("span", { className: "display", style: { fontSize: "18px", color: C.inkFaint } }, String(idx + 1).padStart(2, "0")), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "14px", fontWeight: 600, color: C.ink } }, ex.name)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "3px", fontWeight: 500, letterSpacing: "0.03em" } }, ex.sets, " \xD7 ", ex.reps, " \xB7 descanso ", ex.rest)), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "14px", color: allDone ? C.success : C.accent } }, doneCount, "/", sets.length)), editando && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "14px", padding: "0 16px 12px" } }, /* @__PURE__ */ React.createElement("button", { onClick: onCambiar, style: miniAction(C.accent) }, "CAMBIAR"), onQuitar && /* @__PURE__ */ React.createElement("button", { onClick: onQuitar, style: { ...miniAction(C.danger), marginLeft: "auto" } }, "QUITAR")), expanded && /* @__PURE__ */ React.createElement("div", { style: { padding: "0 16px 16px", borderTop: `1px solid ${C.border}` } }, ex.hint && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, fontStyle: "italic", margin: "10px 0", lineHeight: 1.4 } }, ex.hint), prev && /* @__PURE__ */ React.createElement("div", { style: { margin: "10px 0", padding: "10px 12px", background: prev.subir ? C.accentBg : C.surface, borderRadius: "8px", border: prev.subir ? `1px solid ${C.accent}` : "none" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: prev.subir ? C.accentText : C.inkMuted, letterSpacing: "0.08em", fontWeight: 700 } }, prev.subir ? "\u25B2 TOCA SUBIR CARGA" : `\xDALTIMA VEZ \xB7 ${formatDate(prev.date)}`), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: prev.subir ? C.accentText : C.inkDim, marginTop: "4px", fontFamily: FONT_MONO } }, prev.sets.map((x) => `${x.reps || "?"}\xD7${x.weight || 0}kg`).join(" \xB7 ")), prev.subir && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.accentText, marginTop: "5px", fontWeight: 600 } }, "Completaste ", prev.tope, " reps en todas las series \u2192 sube a ", prev.sugerido, " kg")), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "30px 1fr 1fr 42px", gap: "8px", fontSize: "10px", color: C.inkMuted, letterSpacing: "0.08em", fontWeight: 600, marginBottom: "8px", paddingBottom: "6px", borderBottom: `1px solid ${C.border}` } }, /* @__PURE__ */ React.createElement("div", null, "SET"), /* @__PURE__ */ React.createElement("div", null, "REPS"), /* @__PURE__ */ React.createElement("div", null, "KG"), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, "\u2713")), sets.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "grid", gridTemplateColumns: "30px 1fr 1fr 42px", gap: "8px", alignItems: "center", padding: "5px 0" } }, /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "15px", color: C.inkDim } }, i + 1), /* @__PURE__ */ React.createElement("input", { inputMode: "numeric", pattern: "[0-9]*", value: s.reps, onChange: (e) => onUpdate(i, "reps", e.target.value.replace(/\D/g, "")), placeholder: "\u2014", style: setInputStyle(s.done, C) }), /* @__PURE__ */ React.createElement("input", { inputMode: "decimal", value: s.weight, onChange: (e) => onUpdate(i, "weight", e.target.value.replace(/[^0-9.]/g, "")), placeholder: "\u2014", style: setInputStyle(s.done, C) }), /* @__PURE__ */ React.createElement("button", { onClick: () => onMarkDone(i), style: { padding: "8px", background: s.done ? C.success : "transparent", border: `1.5px solid ${s.done ? C.success : C.borderStrong}`, borderRadius: "6px", color: s.done ? "#FFFFFF" : C.inkMuted, cursor: "pointer", fontSize: "12px", fontWeight: 700 } }, s.done ? "\u2713" : " "))))));
 }
 function setInputStyle(done, C) {
   return { padding: "8px 10px", background: done ? C.successBg : C.surface, border: `1px solid ${done ? C.success : C.border}`, borderRadius: "6px", color: done ? C.success : C.ink, fontFamily: FONT_DISPLAY, fontSize: "16px", textAlign: "center", outline: "none", width: "100%", boxSizing: "border-box", fontWeight: 600 };
 }
-function CoachTab({ C, profile, messages, onUpdate, onClear, goals, events, checkins, sessions, exercisesDone, pendingInput, clearPending, onAddSession }) {
+function CoachTab({ C, profile, messages, onUpdate, onClear, goals, events, checkins, sessions, exercisesDone, gymCustom, pendingInput, clearPending, onAddSession }) {
   const [input, setInput] = useState("");
   const [pendingImages, setPendingImages] = useState([]);
   const [localMessages, setLocalMessages] = useState(messages);
@@ -1688,6 +1920,17 @@ CARGA (ACWR): datos insuficientes (${acwr.diasDeDatos} d\xEDas de registro).
     if (rm && rm.estaSemana) {
       ctx += `HOJA DE RUTA MARAT\xD3N: base actual ${rm.base} km/sem, objetivo ${rm.objetivo} km/sem, ${rm.semanasRestantes} semanas a la carrera. Esta semana toca ${rm.estaSemana.km} km (${rm.estaSemana.fase}). Pico previsto ${rm.pico} km. Progresi\xF3n m\xE1x 10% semanal con descarga cada 4 semanas.
 `;
+    }
+    const personalizadas = Object.keys(gymCustom || {});
+    if (personalizadas.length) {
+      ctx += `
+PLANTILLAS DE GIMNASIO PERSONALIZADAS (${profile.name} cambi\xF3 estos ejercicios; resp\xE9talos al aconsejar):
+`;
+      personalizadas.forEach((tid) => {
+        const nombre = GYM_TEMPLATES[tid]?.name || tid;
+        ctx += `- ${nombre}: ${ejerciciosDe(tid, gymCustom).map((e) => e.name).join(", ")}
+`;
+      });
     }
     const pl = plyoStatus(sessions, checkins);
     ctx += `PLIOMETR\xCDA: nivel ${pl.nivel}/3 (${pl.template.contactos} contactos por sesi\xF3n), ${pl.enNivel} sesiones en este nivel, ${pl.total} en total. Esta semana: ${pl.estaSemana}. ${pl.debeBajar ? "BLOQUEADA por dolor o s\xEDntomas recientes." : pl.puedeSubir ? "Lista para subir de nivel." : ""}${pl.diasDesde !== null ? ` \xDAltima hace ${pl.diasDesde} d\xEDas.` : " A\xFAn sin sesiones."}
@@ -2172,7 +2415,7 @@ function GoalForm({ C, initial, onSubmit, onCancel }) {
   };
   return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(FormField, { label: "Tipo", C }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px" } }, Object.entries(GOAL_TYPES).map(([k, v]) => /* @__PURE__ */ React.createElement(Pill, { key: k, C, active: type === k, onClick: () => setType(k) }, v.label)))), /* @__PURE__ */ React.createElement(FormField, { label: "T\xEDtulo", C }, /* @__PURE__ */ React.createElement(FormInput, { C, value: title, onChange: setTitle, placeholder: "Ej: Marat\xF3n 2027" })), /* @__PURE__ */ React.createElement(FormField, { label: "Fecha objetivo", C }, /* @__PURE__ */ React.createElement(FormInput, { C, value: targetDate, onChange: setTargetDate, type: "date" })), (type === "marathon" || type === "race") && /* @__PURE__ */ React.createElement(FormField, { label: "Km/semana objetivo", C }, /* @__PURE__ */ React.createElement(FormInput, { C, value: weeklyKmTarget, onChange: setWeeklyKmTarget, placeholder: "50" })), type === "race" && /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" } }, /* @__PURE__ */ React.createElement(FormField, { label: "Marca actual", C }, /* @__PURE__ */ React.createElement(FormInput, { C, value: currentBest, onChange: setCurrentBest, placeholder: "53:00" })), /* @__PURE__ */ React.createElement(FormField, { label: "Objetivo", C }, /* @__PURE__ */ React.createElement(FormInput, { C, value: targetTime, onChange: setTargetTime, placeholder: "45:00" }))), /* @__PURE__ */ React.createElement(FormField, { label: "Notas", C }, /* @__PURE__ */ React.createElement(FormInput, { C, value: notes, onChange: setNotes, placeholder: "Contexto\u2026", multiline: true })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", marginTop: "14px" } }, /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: submit, style: { flex: 1 } }, "Guardar"), onCancel && /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: onCancel, style: { flex: 1 } }, "Cancelar")));
 }
-function LogTab({ C, sessions, checkins, onAddSession, onDeleteSession, onUpdateSession, profile, goals, events, exercisesDone, unlocked, onImport }) {
+function LogTab({ C, sessions, checkins, onAddSession, onDeleteSession, onUpdateSession, profile, goals, events, exercisesDone, unlocked, gymCustom, onImport }) {
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState("all");
   const filtered = useMemo(() => {
@@ -2201,7 +2444,7 @@ function LogTab({ C, sessions, checkins, onAddSession, onDeleteSession, onUpdate
     return w;
   }, [sessions]);
   const [exportText, setExportText] = useState(null);
-  const snapshot = () => JSON.stringify({ exported: (/* @__PURE__ */ new Date()).toISOString(), profile, goals, events, sessions, checkins, exercisesDone, unlocked }, null, 2);
+  const snapshot = () => JSON.stringify({ exported: (/* @__PURE__ */ new Date()).toISOString(), profile, goals, events, sessions, checkins, exercisesDone, unlocked, gymCustom }, null, 2);
   const exportData = () => {
     const json = snapshot();
     try {
@@ -2503,7 +2746,7 @@ function ProfileModal({ C, profile, sessions, achievements, onSave, onClose }) {
     letterSpacing: "0.06em",
     textTransform: "uppercase",
     cursor: "pointer"
-  } }, a.name)))), /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: save, style: { width: "100%", marginTop: "8px" } }, "Guardar cambios")), /* @__PURE__ */ React.createElement(ApiKeyCard, { C }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: "10px" } }, "Sobre"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkDim, lineHeight: 1.5 } }, "Coach personal \xB7 v5.2 (16 sep 2026)", /* @__PURE__ */ React.createElement("br", null), "Todos tus datos se guardan localmente y son solo tuyos."))));
+  } }, a.name)))), /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: save, style: { width: "100%", marginTop: "8px" } }, "Guardar cambios")), /* @__PURE__ */ React.createElement(ApiKeyCard, { C }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: "10px" } }, "Sobre"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkDim, lineHeight: 1.5 } }, "Coach personal \xB7 v5.3 (16 sep 2026)", /* @__PURE__ */ React.createElement("br", null), "Todos tus datos se guardan localmente y son solo tuyos."))));
 }
 function ApiKeyCard({ C }) {
   const [key, setKey] = useState(getApiKey());
