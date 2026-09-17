@@ -684,6 +684,23 @@ REGLAS: m\xE1x 10% de incremento semanal en km de impacto. No dos d\xEDas seguid
 
 FORMATO: resumen breve, plan concreto (qu\xE9, cu\xE1ndo, cu\xE1nto), c\xF3mo medir, cu\xE1ndo ajustar o parar.
 
+PUEDES MODIFICAR EL PLAN DE LA APP \u2014 \xDASALO SIEMPRE QUE ACUERDEN UN CAMBIO:
+Cuando ${profile.name} decida descansar un d\xEDa, mover una sesi\xF3n o fijar qu\xE9 toca en una fecha, NO basta con describirlo en el texto: debes emitir un bloque al final, sin backticks, o el cambio no ocurre.
+
+<PLAN>
+[{"date":"2026-09-19","accion":"descanso","motivo":"Fiestas Patrias"},
+ {"date":"2026-09-18","accion":"asignar","sesion":"run-quality","detalle":"Fartlek 6\xD73min en cinta"}]
+</PLAN>
+
+Reglas del bloque:
+- "accion" \u2208 descanso | asignar | liberar. "liberar" quita un ajuste previo y devuelve el d\xEDa al reparto autom\xE1tico.
+- "sesion" solo en "asignar", y debe ser uno de: run-long, run-quality, gym-upper, gym-lower_strength, gym-lower_athletic.
+- Una entrada por fecha. Puedes enviar varias en un array.
+- Em\xEDtelo SOLO cuando haya una decisi\xF3n concreta, no para comentar hip\xF3tesis.
+- No lo menciones en el texto: la app lo procesa y muestra la confirmaci\xF3n.
+
+NUNCA digas que ajustaste, reordenaste o actualizaste el plan si no emitiste el bloque. Si el cambio no aplica, dilo con claridad en vez de fingir que qued\xF3 hecho.
+
 TONO: dir\xEDgete a ${profile.name} directamente. T\xE9cnico, directo, sin relleno. Si falta info clave, pregunta.`;
 }
 function imagePromptExtension() {
@@ -831,7 +848,42 @@ function parseSessionBlocks(text) {
   return found;
 }
 function stripSessionBlocks(text) {
-  return text.replace(/<SESION>[\s\S]*?<\/SESION>/g, "").trim();
+  return text.replace(/<SESION>[\s\S]*?<\/SESION>/g, "").replace(/<PLAN>[\s\S]*?<\/PLAN>/g, "").trim();
+}
+const ACCIONES_PLAN = ["descanso", "asignar", "liberar"];
+function parsePlanBlocks(text) {
+  const found = [];
+  const regex = /<PLAN>\s*([\s\S]*?)\s*<\/PLAN>/g;
+  let m;
+  while ((m = regex.exec(text)) !== null) {
+    try {
+      const raw = m[1].replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+      const parsed = JSON.parse(raw);
+      const lista = Array.isArray(parsed) ? parsed : [parsed];
+      lista.forEach((o) => {
+        if (!o || typeof o !== "object") return;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date || "")) return;
+        if (!ACCIONES_PLAN.includes(o.accion)) return;
+        if (o.accion === "asignar" && !WEEK_QUOTA.some((q) => q.id === o.sesion)) return;
+        found.push({
+          date: o.date,
+          accion: o.accion,
+          sesion: o.accion === "asignar" ? o.sesion : null,
+          detalle: typeof o.detalle === "string" ? o.detalle.slice(0, 200) : "",
+          motivo: typeof o.motivo === "string" ? o.motivo.slice(0, 120) : "",
+          creado: todayISO()
+        });
+      });
+    } catch (e) {
+    }
+  }
+  return found;
+}
+function describePlanOverride(o) {
+  if (o.accion === "descanso") return "Descanso" + (o.motivo ? ` \xB7 ${o.motivo}` : "");
+  if (o.accion === "liberar") return "D\xEDa liberado";
+  const q = WEEK_QUOTA.find((x) => x.id === o.sesion);
+  return (q ? q.label : o.sesion) + (o.detalle ? ` \xB7 ${o.detalle}` : "");
 }
 function mismaSesion(a, b) {
   if (a.date !== b.date || a.type !== b.type) return false;
@@ -963,7 +1015,7 @@ function weekActuals(sessions, monday) {
   });
   return { days, done, groups };
 }
-function planWeek(sessions, events, monday, hoy) {
+function planWeek(sessions, events, monday, hoy, overrides = {}) {
   const { days, done, groups } = weekActuals(sessions, monday);
   const asignado = {};
   const gruposDia = { ...groups };
@@ -988,8 +1040,24 @@ function planWeek(sessions, events, monday, hoy) {
       }
     }
   });
+  const fijados = /* @__PURE__ */ new Set();
+  days.forEach((d) => {
+    const ov = overrides[d];
+    if (!ov || asignado[d]) return;
+    if (ov.accion === "descanso") {
+      asignado[d] = { type: "default", training: { type: "rest", label: "Descanso acordado", hint: ov.motivo || "Acordado con el coach." }, override: ov };
+    } else if (ov.accion === "asignar") {
+      const q = WEEK_QUOTA.find((x) => x.id === ov.sesion);
+      if (q && !done[q.id]) {
+        asignado[d] = { type: "default", training: { type: q.kind, gymId: q.gymId, label: q.label, hint: ov.detalle || q.hint }, quotaId: q.id, override: ov };
+        gruposDia[d] = [...gruposDia[d] || [], q.group];
+        fijados.add(q.id);
+      }
+    }
+  });
   const pendientes = WEEK_QUOTA.filter((q) => !done[q.id]);
-  const futuros = days.filter((d) => d >= hoy && !asignado[d]);
+  const yaEntrenado = (d) => sessions.some((x) => x.date === d);
+  const futuros = days.filter((d) => d >= hoy && !asignado[d] && !yaEntrenado(d));
   const puede = (item, d, idx) => {
     const prev = idx > 0 ? gruposDia[days[days.indexOf(d) - 1]] || [] : [];
     if (item.group === "impact" && prev.includes("impact")) return false;
@@ -997,7 +1065,7 @@ function planWeek(sessions, events, monday, hoy) {
     if (item.group === "lower" && prev.includes("lower")) return false;
     return true;
   };
-  const restantes = [...pendientes];
+  const restantes = pendientes.filter((q) => !fijados.has(q.id));
   futuros.forEach((d) => {
     if (restantes.length === 0) return;
     const dow = dowOf(d);
@@ -1032,10 +1100,14 @@ function planWeek(sessions, events, monday, hoy) {
   });
   return { asignado, done, pendientes, restantes, days, porHacer: pendientes.filter((q) => !done[q.id]) };
 }
-function getTodayPlan(sessions, events, dateISO) {
+function getTodayPlan(sessions, events, dateISO, overrides = {}) {
   const monday = weekStart(dateISO);
-  const { asignado, done, porHacer } = planWeek(sessions, events, monday, todayISO());
+  const { asignado, done, porHacer } = planWeek(sessions, events, monday, todayISO(), overrides);
   const plan = asignado[dateISO] || { type: "default", training: { type: "rest", label: "Descanso", hint: "" } };
+  if (plan.override) {
+    plan.why = "lo acordaste con el coach" + (plan.override.motivo ? ` \u2014 ${plan.override.motivo}` : "");
+    return plan;
+  }
   if (plan.type === "default" && plan.training.type !== "rest") {
     const ayer = addDays(dateISO, -1);
     const gruposAyer = [];
@@ -1102,6 +1174,7 @@ function App() {
   const [sessions, setSessions] = useState([]);
   const [exercisesDone, setExercisesDone] = useState({});
   const [gymCustom, setGymCustom] = useState({});
+  const [planOverrides, setPlanOverrides] = useState({});
   const [chatMessages, setChatMessages] = useState([]);
   const [pendingInput, setPendingInput] = useState("");
   const [activeGymSession, setActiveGymSession] = useState(null);
@@ -1123,6 +1196,9 @@ function App() {
       setSessions(sesionesGuardadas);
       setExercisesDone(await loadFromStorage("exercisesDone", {}));
       setGymCustom(await loadFromStorage("gymCustom", {}));
+      const ovGuardados = await loadFromStorage("planOverrides", {});
+      overridesRef.current = ovGuardados;
+      setPlanOverrides(ovGuardados);
       setChatMessages(await loadFromStorage("chatMessages", []));
       setUnlocked(await loadFromStorage("unlocked", {}));
       setLoaded(true);
@@ -1187,6 +1263,29 @@ function App() {
     else next[templateId] = ids;
     setGymCustom(next);
     await saveToStorage("gymCustom", next);
+  };
+  const overridesRef = useRef(planOverrides);
+  const aplicarOverrides = async (lista) => {
+    const next = { ...overridesRef.current };
+    lista.forEach((o) => {
+      if (o.accion === "liberar") delete next[o.date];
+      else next[o.date] = o;
+    });
+    const limite = addDays(weekStart(todayISO()), -7);
+    Object.keys(next).forEach((k) => {
+      if (k < limite) delete next[k];
+    });
+    overridesRef.current = next;
+    setPlanOverrides(next);
+    await saveToStorage("planOverrides", next);
+    return lista;
+  };
+  const quitarOverride = async (fecha) => {
+    const next = { ...overridesRef.current };
+    delete next[fecha];
+    overridesRef.current = next;
+    setPlanOverrides(next);
+    await saveToStorage("planOverrides", next);
   };
   const updateChat = async (m) => {
     setChatMessages(m);
@@ -1316,6 +1415,8 @@ function App() {
       exercisesDone,
       streak,
       gymCustom,
+      planOverrides,
+      onQuitarOverride: quitarOverride,
       achievements,
       unlocked,
       onOpenAchievements: () => setTab("plan"),
@@ -1339,6 +1440,8 @@ function App() {
       sessions,
       exercisesDone,
       gymCustom,
+      planOverrides,
+      onAplicarPlan: aplicarOverrides,
       pendingInput,
       clearPending: () => setPendingInput(""),
       onAddSession: addSession
@@ -1489,7 +1592,7 @@ function Header({ C, profile, streak, onProfileClick }) {
     letterSpacing: "0.02em"
   } }, initials))));
 }
-function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, streak, gymCustom, achievements, unlocked, onOpenAchievements, askCoach, onSaveCheckin, onToggleExercise, onAddSession, onStartGym }) {
+function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, streak, gymCustom, planOverrides, onQuitarOverride, achievements, unlocked, onOpenAchievements, askCoach, onSaveCheckin, onToggleExercise, onAddSession, onStartGym }) {
   const [showCheckin, setShowCheckin] = useState(false);
   const [showSession, setShowSession] = useState(false);
   const latest = checkins[0];
@@ -1500,7 +1603,7 @@ function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, str
   const roadmap = useMemo(() => marathon ? marathonRoadmap(sessions, marathon) : null, [sessions, marathon]);
   const raceGoal = goals.find((g) => g.type === "race" && !g.completed);
   const weekKmRun = sessions.filter((s) => RUN_IDS.includes(s.type) && daysAgo(s.date) <= 7).reduce((a, s) => a + (parseFloat(s.distance) || 0), 0);
-  const plan = getTodayPlan(sessions, events, todayISO());
+  const plan = getTodayPlan(sessions, events, todayISO(), planOverrides);
   const wp = useMemo(() => weekProgress(sessions, events), [sessions, events]);
   const acwr = useMemo(() => calcACWR(sessions), [sessions]);
   const plyo = useMemo(() => plyoStatus(sessions, checkins), [sessions, checkins]);
@@ -1511,10 +1614,10 @@ function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, str
     for (let i = 0; i < 7; i++) {
       const date = addDays(todayISO(), i);
       const dayEvents = events.filter((e) => e.date === date && !e.completed);
-      arr.push({ date, dow: dowOf(date), events: dayEvents, plan: getTodayPlan(sessions, events, date), isToday: i === 0 });
+      arr.push({ date, dow: dowOf(date), events: dayEvents, plan: getTodayPlan(sessions, events, date, planOverrides), isToday: i === 0 });
     }
     return arr;
-  }, [events]);
+  }, [events, sessions, planOverrides]);
   return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { className: "fade-in", style: { marginBottom: "2px" } }, /* @__PURE__ */ React.createElement(Label, null, (/* @__PURE__ */ new Date()).toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "28px", color: C.ink, marginTop: "4px", lineHeight: 1 } }, greeting.toUpperCase())), /* @__PURE__ */ React.createElement(TodayCard, { C, plan, onStartGym, askCoach, profile, gymCustom }), /* @__PURE__ */ React.createElement(Card, { C, style: { background: wp.pct >= 80 ? C.accentBg : C.card, border: `1px solid ${wp.pct >= 80 ? C.accentBg : C.border}` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, { color: wp.pct >= 80 ? C.accentText : C.inkMuted }, "Semana en curso"), streak > 0 && /* @__PURE__ */ React.createElement(Label, { color: wp.pct >= 80 ? C.accentText : C.accent }, "\u{1F525} ", streak, " ", streak === 1 ? "SEMANA" : "SEMANAS")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "12px", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(DisplayNum, { value: `${wp.met}/${wp.required}`, size: 38, color: wp.pct >= 80 ? C.accentText : C.ink }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: wp.pct >= 80 ? C.accentText : C.inkMuted, fontWeight: 500, opacity: 0.9 } }, "sesiones planificadas")), /* @__PURE__ */ React.createElement("div", { style: { height: "8px", background: wp.pct >= 80 ? "rgba(0,0,0,0.08)" : C.surface, borderRadius: "4px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { width: `${Math.min(100, wp.pct)}%`, height: "100%", background: wp.pct >= 80 ? C.accent : C.ink, transition: "width 0.4s" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: wp.pct >= 80 ? C.accentText : C.inkMuted, marginTop: "8px", fontWeight: 500 } }, wp.pct >= 100 ? "\u2713 Semana completa" : wp.pct >= 80 ? "\u2713 Semana cumplida (80%+)" : streak > 0 ? `Faltan ${Math.max(0, Math.ceil(wp.required * 0.8) - wp.met)} para mantener la racha` : "Cumple 80% de la semana para arrancar tu racha"), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "14px", paddingTop: "14px", borderTop: `1px solid ${wp.pct >= 80 ? "rgba(0,0,0,0.08)" : C.border}` } }, WEEK_QUOTA.map((q) => {
     const hecho = wp.done[q.id];
     return /* @__PURE__ */ React.createElement("div", { key: q.id, style: { display: "flex", alignItems: "center", gap: "9px", padding: "4px 0" } }, /* @__PURE__ */ React.createElement("div", { style: { width: "14px", height: "14px", flexShrink: 0, borderRadius: "4px", background: hecho ? C.success : "transparent", border: `1.5px solid ${hecho ? C.success : C.borderStrong}`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "9px", fontWeight: 700 } }, hecho ? "\u2713" : ""), /* @__PURE__ */ React.createElement("span", { style: { flex: 1, fontSize: "12px", color: hecho ? C.inkMuted : C.ink, fontWeight: 500, textDecoration: hecho ? "line-through" : "none" } }, q.label), hecho && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "10px", color: C.inkFaint, fontWeight: 600 } }, formatDate(hecho)));
@@ -1567,7 +1670,7 @@ function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, str
       fontSize: "12px",
       cursor: "pointer"
     } }, /* @__PURE__ */ React.createElement("div", { style: { width: "14px", height: "14px", flexShrink: 0, marginTop: "2px", background: done ? C.accent : "transparent", border: `1.5px solid ${done ? C.accent : C.borderStrong}`, borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "10px" } }, done ? "\u2713" : ""), /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 500, lineHeight: 1.25 } }, ex.name), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "14px", color: done ? C.accentText : C.accent, marginTop: "3px", letterSpacing: "0.03em" } }, ex.sets)));
-  }))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", margin: "8px 0 4px", color: C.inkFaint, fontFamily: FONT_MONO, fontSize: "10px", letterSpacing: "0.1em" } }, "coach \xB7 v5.4 \xB7 16 sep"));
+  }))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", margin: "8px 0 4px", color: C.inkFaint, fontFamily: FONT_MONO, fontSize: "10px", letterSpacing: "0.1em" } }, "coach \xB7 v6.0 \xB7 17 sep"));
 }
 function StatMini({ label, value, C, warn, good }) {
   const color = warn ? C.danger : good ? C.success : C.ink;
@@ -1918,7 +2021,7 @@ function ExerciseBlock({ C, ex, idx, sets, expanded, onExpand, onUpdate, onMarkD
 function setInputStyle(done, C) {
   return { padding: "8px 10px", background: done ? C.successBg : C.surface, border: `1px solid ${done ? C.success : C.border}`, borderRadius: "6px", color: done ? C.success : C.ink, fontFamily: FONT_DISPLAY, fontSize: "16px", textAlign: "center", outline: "none", width: "100%", boxSizing: "border-box", fontWeight: 600 };
 }
-function CoachTab({ C, profile, messages, onUpdate, onClear, goals, events, checkins, sessions, exercisesDone, gymCustom, pendingInput, clearPending, onAddSession }) {
+function CoachTab({ C, profile, messages, onUpdate, onClear, goals, events, checkins, sessions, exercisesDone, gymCustom, planOverrides, onAplicarPlan, pendingInput, clearPending, onAddSession }) {
   const [input, setInput] = useState("");
   const [pendingImages, setPendingImages] = useState([]);
   const [localMessages, setLocalMessages] = useState(messages);
@@ -1947,7 +2050,7 @@ function CoachTab({ C, profile, messages, onUpdate, onClear, goals, events, chec
 Fecha: ${todayISO()} (${DAY_FULL[(/* @__PURE__ */ new Date()).getDay()]})
 Atleta: ${profile.name}
 `;
-    const plan = getTodayPlan(sessions, events, todayISO());
+    const plan = getTodayPlan(sessions, events, todayISO(), planOverrides);
     if (plan.type === "event") ctx += `
 PLAN HOY: Evento \u2014 "${plan.event.title}" [${EVENT_TYPES[plan.event.type].label}]${plan.event.notes ? ". " + plan.event.notes : ""}
 `;
@@ -1958,7 +2061,7 @@ PLAN HOY: Taper \u2014 el ${plan.event.date} tienes "${plan.event.title}" [${EVE
 PLAN HOY (adaptativo): ${plan.training.label}${plan.training.hint ? " \u2014 " + plan.training.hint : ""}${plan.why ? ` [motivo: ${plan.why}]` : ""}
 `;
     const monday = weekStart(todayISO());
-    const wk = planWeek(sessions, events, monday, todayISO());
+    const wk = planWeek(sessions, events, monday, todayISO(), planOverrides);
     ctx += `
 CUPO SEMANAL (semana del ${monday}). El plan NO es fijo por d\xEDa: se reparte seg\xFAn lo que ya hiciste.
 `;
@@ -2008,6 +2111,16 @@ PLANTILLAS DE GIMNASIO PERSONALIZADAS (${profile.name} cambi\xF3 estos ejercicio
     const pl = plyoStatus(sessions, checkins);
     ctx += `PLIOMETR\xCDA: nivel ${pl.nivel}/3 (${pl.template.contactos} contactos por sesi\xF3n), ${pl.enNivel} sesiones en este nivel, ${pl.total} en total. Esta semana: ${pl.estaSemana}. ${pl.debeBajar ? "BLOQUEADA por dolor o s\xEDntomas recientes." : pl.puedeSubir ? "Lista para subir de nivel." : ""}${pl.diasDesde !== null ? ` \xDAltima hace ${pl.diasDesde} d\xEDas.` : " A\xFAn sin sesiones."}
 `;
+    const ovs = Object.values(planOverrides || {}).filter((o) => o.date >= weekStart(todayISO())).sort((a, b) => a.date.localeCompare(b.date));
+    if (ovs.length) {
+      ctx += `
+AJUSTES DE PLAN YA APLICADOS (los acordaron antes; siguen vigentes):
+`;
+      ovs.forEach((o) => {
+        ctx += `- ${o.date}: ${describePlanOverride(o)}
+`;
+      });
+    }
     ctx += `REGLAS DE REPARTO: no repetir el mismo grupo muscular ni impacto en d\xEDas seguidos; el long run va preferentemente s\xE1bado o domingo; si se acumulan pendientes, priorizar long run y gimnasio sobre la sesi\xF3n de calidad.
 `;
     const upcoming = events.filter((e) => !e.completed && daysUntil(e.date) != null && daysUntil(e.date) >= 0 && daysUntil(e.date) <= 14);
@@ -2085,7 +2198,7 @@ PREHAB HOY: ${prehabHoy}/${PREHAB.length} ejercicios completados
         const imgCount = m.content.filter((b) => b.type === "image").length;
         return { role: m.role, content: `${textPart}${imgCount > 0 ? ` [${imgCount} imagen${imgCount > 1 ? "es" : ""} adjunta${imgCount > 1 ? "s" : ""}]` : ""}`.trim() };
       }
-      return m.saved ? { role: m.role, content: m.content, saved: m.saved } : m;
+      return m.saved || m.plan ? { role: m.role, content: m.content, saved: m.saved, plan: m.plan } : m;
     });
     await onUpdate(stripped);
   };
@@ -2231,6 +2344,8 @@ PREHAB HOY: ${prehabHoy}/${PREHAB.length} ejercicios completados
     }
     try {
       const detected = parseSessionBlocks(reply);
+      const ajustes = parsePlanBlocks(reply);
+      if (ajustes.length) await onAplicarPlan(ajustes);
       const cleanReply = stripSessionBlocks(reply) || "(sin respuesta)";
       let savedInfo = null;
       let duplicadas = 0;
@@ -2257,7 +2372,8 @@ PREHAB HOY: ${prehabHoy}/${PREHAB.length} ejercicios completados
       const finalMessages = [...nextMessages, {
         role: "assistant",
         content: cleanReply + (avisos.length ? "\n\n" + avisos.join(" ") : ""),
-        saved: savedInfo
+        saved: savedInfo,
+        plan: ajustes.length ? ajustes : null
       }];
       setLocalMessages(finalMessages);
       await persistStripped(finalMessages);
@@ -2299,7 +2415,7 @@ PREHAB HOY: ${prehabHoy}/${PREHAB.length} ejercicios completados
     { label: "Cumbre pr\xF3xima", q: "Sugiere pr\xF3xima cumbre seg\xFAn mi estado y sesiones recientes." }
   ];
   const canSend = (input.trim() || pendingImages.length > 0) && !loading;
-  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", minHeight: "calc(100vh - 200px)" } }, localMessages.length === 0 && /* @__PURE__ */ React.createElement(Card, { C, style: { marginBottom: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement("div", { style: { width: "44px", height: "44px", borderRadius: "50%", background: C.accent, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: FONT_DISPLAY, fontSize: "20px" } }, "\u25C6"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "20px", color: C.ink, lineHeight: 1 } }, "TU COACH"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, letterSpacing: "0.08em", fontWeight: 600, marginTop: "4px" } }, "CONTEXTO CARGADO"))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: C.inkDim, lineHeight: 1.5, marginBottom: "14px" } }, "Hola ", profile.name, ". Tengo tu template semanal, tus eventos, tus sesiones y tu estado.", "\n\n", "Sube una captura de la cinta, de Strava/Nike/Garmin o de un perfil de ruta con \u{1F4F7} \u2014 leo los datos y los guardo solos en tu LOG."), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" } }, suggestions.map((s, i) => /* @__PURE__ */ React.createElement("button", { key: i, onClick: () => setInput(s.q), style: { padding: "10px 12px", textAlign: "left", background: C.surface, border: `1px solid ${C.border}`, borderRadius: "8px", color: C.ink, fontSize: "12px", fontFamily: FONT_BODY, cursor: "pointer", fontWeight: 500 } }, s.label))), /* @__PURE__ */ React.createElement("button", { onClick: testConnection, disabled: loading, style: { marginTop: "10px", width: "100%", padding: "9px", background: "transparent", border: `1px solid ${C.border}`, borderRadius: "8px", color: C.inkMuted, fontSize: "11px", fontFamily: FONT_DISPLAY, letterSpacing: "0.08em", fontWeight: 700, cursor: "pointer" } }, "PROBAR CONEXI\xD3N")), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", gap: "10px" } }, localMessages.map((m, i) => /* @__PURE__ */ React.createElement(MessageBubble, { key: i, C, role: m.role, content: m.content, saved: m.saved })), loading && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px", padding: "10px 0" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "4px" } }, [0, 0.15, 0.3].map((d, i) => /* @__PURE__ */ React.createElement("span", { key: i, style: { width: "7px", height: "7px", background: C.accent, borderRadius: "50%", animation: `pulse 1.2s ease-in-out ${d}s infinite` } }))), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: C.inkMuted, letterSpacing: "0.1em", fontWeight: 600 } }, "PROCESANDO")), error && /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 14px", background: C.dangerBg, border: `1px solid ${C.danger}`, borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.danger, fontWeight: 700, letterSpacing: "0.1em", marginBottom: "6px" } }, error.startsWith("DIAGN\xD3STICO") ? "DIAGN\xD3STICO" : "ERROR"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.danger, fontFamily: FONT_MONO, lineHeight: 1.6, wordBreak: "break-word", whiteSpace: "pre-wrap" } }, error.replace(/^DIAGNÓSTICO\n/, "")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "14px", marginTop: "10px" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setError(null), style: { background: "transparent", border: "none", color: C.danger, fontSize: "11px", fontFamily: FONT_DISPLAY, letterSpacing: "0.08em", cursor: "pointer", padding: 0, fontWeight: 700 } }, "CERRAR"), /* @__PURE__ */ React.createElement("button", { onClick: testConnection, disabled: loading, style: { background: "transparent", border: "none", color: C.danger, fontSize: "11px", fontFamily: FONT_DISPLAY, letterSpacing: "0.08em", cursor: "pointer", padding: 0, fontWeight: 700 } }, "PROBAR CONEXI\xD3N"))), /* @__PURE__ */ React.createElement("div", { ref: bottomRef })), /* @__PURE__ */ React.createElement("div", { style: { position: "sticky", bottom: 76, background: C.bg, paddingTop: "12px", marginTop: "16px" } }, pendingImages.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", marginBottom: "10px", overflowX: "auto", paddingBottom: "4px" } }, pendingImages.map((img, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { position: "relative", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("img", { src: img.dataUrl, alt: "", style: { width: "58px", height: "58px", objectFit: "cover", borderRadius: "8px", border: `1px solid ${C.border}`, display: "block" } }), /* @__PURE__ */ React.createElement("button", { onClick: () => removeImage(i), style: { position: "absolute", top: "-6px", right: "-6px", width: "22px", height: "22px", background: C.ink, color: C.bg, border: `2px solid ${C.bg}`, borderRadius: "50%", cursor: "pointer", fontSize: "13px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, lineHeight: 1 } }, "\xD7"))), pendingImages.length < 4 && /* @__PURE__ */ React.createElement("button", { onClick: () => fileRef.current?.click(), style: { flexShrink: 0, width: "58px", height: "58px", background: C.surface, border: `1px dashed ${C.borderStrong}`, borderRadius: "8px", cursor: "pointer", color: C.inkMuted, fontSize: "20px" } }, "+")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", alignItems: "flex-end" } }, /* @__PURE__ */ React.createElement("input", { ref: fileRef, type: "file", accept: "image/*", multiple: true, onChange: handleFiles, style: { display: "none" } }), /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", minHeight: "calc(100vh - 200px)" } }, localMessages.length === 0 && /* @__PURE__ */ React.createElement(Card, { C, style: { marginBottom: "14px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement("div", { style: { width: "44px", height: "44px", borderRadius: "50%", background: C.accent, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontFamily: FONT_DISPLAY, fontSize: "20px" } }, "\u25C6"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "20px", color: C.ink, lineHeight: 1 } }, "TU COACH"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, letterSpacing: "0.08em", fontWeight: 600, marginTop: "4px" } }, "CONTEXTO CARGADO"))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: C.inkDim, lineHeight: 1.5, marginBottom: "14px" } }, "Hola ", profile.name, ". Tengo tu template semanal, tus eventos, tus sesiones y tu estado.", "\n\n", "Sube una captura de la cinta, de Strava/Nike/Garmin o de un perfil de ruta con \u{1F4F7} \u2014 leo los datos y los guardo solos en tu LOG."), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" } }, suggestions.map((s, i) => /* @__PURE__ */ React.createElement("button", { key: i, onClick: () => setInput(s.q), style: { padding: "10px 12px", textAlign: "left", background: C.surface, border: `1px solid ${C.border}`, borderRadius: "8px", color: C.ink, fontSize: "12px", fontFamily: FONT_BODY, cursor: "pointer", fontWeight: 500 } }, s.label))), /* @__PURE__ */ React.createElement("button", { onClick: testConnection, disabled: loading, style: { marginTop: "10px", width: "100%", padding: "9px", background: "transparent", border: `1px solid ${C.border}`, borderRadius: "8px", color: C.inkMuted, fontSize: "11px", fontFamily: FONT_DISPLAY, letterSpacing: "0.08em", fontWeight: 700, cursor: "pointer" } }, "PROBAR CONEXI\xD3N")), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, display: "flex", flexDirection: "column", gap: "10px" } }, localMessages.map((m, i) => /* @__PURE__ */ React.createElement(MessageBubble, { key: i, C, role: m.role, content: m.content, saved: m.saved, plan: m.plan })), loading && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px", padding: "10px 0" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "4px" } }, [0, 0.15, 0.3].map((d, i) => /* @__PURE__ */ React.createElement("span", { key: i, style: { width: "7px", height: "7px", background: C.accent, borderRadius: "50%", animation: `pulse 1.2s ease-in-out ${d}s infinite` } }))), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: C.inkMuted, letterSpacing: "0.1em", fontWeight: 600 } }, "PROCESANDO")), error && /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 14px", background: C.dangerBg, border: `1px solid ${C.danger}`, borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.danger, fontWeight: 700, letterSpacing: "0.1em", marginBottom: "6px" } }, error.startsWith("DIAGN\xD3STICO") ? "DIAGN\xD3STICO" : "ERROR"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.danger, fontFamily: FONT_MONO, lineHeight: 1.6, wordBreak: "break-word", whiteSpace: "pre-wrap" } }, error.replace(/^DIAGNÓSTICO\n/, "")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "14px", marginTop: "10px" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setError(null), style: { background: "transparent", border: "none", color: C.danger, fontSize: "11px", fontFamily: FONT_DISPLAY, letterSpacing: "0.08em", cursor: "pointer", padding: 0, fontWeight: 700 } }, "CERRAR"), /* @__PURE__ */ React.createElement("button", { onClick: testConnection, disabled: loading, style: { background: "transparent", border: "none", color: C.danger, fontSize: "11px", fontFamily: FONT_DISPLAY, letterSpacing: "0.08em", cursor: "pointer", padding: 0, fontWeight: 700 } }, "PROBAR CONEXI\xD3N"))), /* @__PURE__ */ React.createElement("div", { ref: bottomRef })), /* @__PURE__ */ React.createElement("div", { style: { position: "sticky", bottom: 76, background: C.bg, paddingTop: "12px", marginTop: "16px" } }, pendingImages.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", marginBottom: "10px", overflowX: "auto", paddingBottom: "4px" } }, pendingImages.map((img, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { position: "relative", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("img", { src: img.dataUrl, alt: "", style: { width: "58px", height: "58px", objectFit: "cover", borderRadius: "8px", border: `1px solid ${C.border}`, display: "block" } }), /* @__PURE__ */ React.createElement("button", { onClick: () => removeImage(i), style: { position: "absolute", top: "-6px", right: "-6px", width: "22px", height: "22px", background: C.ink, color: C.bg, border: `2px solid ${C.bg}`, borderRadius: "50%", cursor: "pointer", fontSize: "13px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, lineHeight: 1 } }, "\xD7"))), pendingImages.length < 4 && /* @__PURE__ */ React.createElement("button", { onClick: () => fileRef.current?.click(), style: { flexShrink: 0, width: "58px", height: "58px", background: C.surface, border: `1px dashed ${C.borderStrong}`, borderRadius: "8px", cursor: "pointer", color: C.inkMuted, fontSize: "20px" } }, "+")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", alignItems: "flex-end" } }, /* @__PURE__ */ React.createElement("input", { ref: fileRef, type: "file", accept: "image/*", multiple: true, onChange: handleFiles, style: { display: "none" } }), /* @__PURE__ */ React.createElement(
     "button",
     {
       onClick: () => fileRef.current?.click(),
@@ -2332,7 +2448,7 @@ PREHAB HOY: ${prehabHoy}/${PREHAB.length} ejercicios completados
     "\u25B8"
   )), localMessages.length > 0 && /* @__PURE__ */ React.createElement("button", { onClick: clear, style: { marginTop: "8px", background: "none", border: "none", color: C.inkMuted, fontSize: "11px", cursor: "pointer", fontFamily: FONT_DISPLAY, letterSpacing: "0.1em", padding: "4px 0", fontWeight: 600 } }, "NUEVA CONVERSACI\xD3N")));
 }
-function MessageBubble({ C, role, content, saved }) {
+function MessageBubble({ C, role, content, saved, plan }) {
   const isUser = role === "user";
   const isArray = Array.isArray(content);
   const textPart = isArray ? (content.find((b) => b.type === "text") || {}).text || "" : content;
@@ -2347,7 +2463,7 @@ function MessageBubble({ C, role, content, saved }) {
     fontSize: "13px",
     lineHeight: 1.55,
     whiteSpace: "pre-wrap"
-  } }, !isUser && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.accent, letterSpacing: "0.1em", fontWeight: 700, marginBottom: "6px", padding: hasImages ? "4px 6px 0" : 0 } }, "\u25C6 COACH"), hasImages && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: textPart ? "8px" : 0 } }, imageParts.map((img, i) => /* @__PURE__ */ React.createElement("img", { key: i, src: `data:${img.source.media_type};base64,${img.source.data}`, alt: "", style: { maxWidth: "180px", maxHeight: "180px", borderRadius: "8px", objectFit: "cover", display: "block" } }))), textPart && /* @__PURE__ */ React.createElement("div", { style: { padding: hasImages ? "4px 6px 6px" : 0 } }, textPart)), saved && saved.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "6px", maxWidth: "88%", display: "flex", flexDirection: "column", gap: "4px" } }, saved.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", background: C.successBg, border: `1px solid ${C.success}`, borderRadius: "8px" } }, /* @__PURE__ */ React.createElement("span", { style: { color: C.success, fontSize: "13px", fontWeight: 700 } }, "\u2713"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.success, fontWeight: 700, letterSpacing: "0.06em" } }, "SESI\xD3N GUARDADA"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.ink, marginTop: "2px", fontWeight: 500 } }, describeSession(s)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.inkMuted, marginTop: "1px" } }, formatDate(s.date), s.confidence && s.confidence !== "alta" ? ` \xB7 confianza ${s.confidence} \u2014 revisa en LOG` : ""))))));
+  } }, !isUser && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.accent, letterSpacing: "0.1em", fontWeight: 700, marginBottom: "6px", padding: hasImages ? "4px 6px 0" : 0 } }, "\u25C6 COACH"), hasImages && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: "4px", marginBottom: textPart ? "8px" : 0 } }, imageParts.map((img, i) => /* @__PURE__ */ React.createElement("img", { key: i, src: `data:${img.source.media_type};base64,${img.source.data}`, alt: "", style: { maxWidth: "180px", maxHeight: "180px", borderRadius: "8px", objectFit: "cover", display: "block" } }))), textPart && /* @__PURE__ */ React.createElement("div", { style: { padding: hasImages ? "4px 6px 6px" : 0 } }, textPart)), plan && plan.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "6px", maxWidth: "88%", display: "flex", flexDirection: "column", gap: "4px" } }, plan.map((o, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", background: C.accentBg, border: `1px solid ${C.accent}`, borderRadius: "8px" } }, /* @__PURE__ */ React.createElement("span", { style: { color: C.accent, fontSize: "13px", fontWeight: 700 } }, "\u2713"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.accentText, fontWeight: 700, letterSpacing: "0.06em" } }, "PLAN ACTUALIZADO"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.ink, marginTop: "2px", fontWeight: 500 } }, formatDate(o.date), " \xB7 ", describePlanOverride(o)))))), saved && saved.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "6px", maxWidth: "88%", display: "flex", flexDirection: "column", gap: "4px" } }, saved.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", background: C.successBg, border: `1px solid ${C.success}`, borderRadius: "8px" } }, /* @__PURE__ */ React.createElement("span", { style: { color: C.success, fontSize: "13px", fontWeight: 700 } }, "\u2713"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.success, fontWeight: 700, letterSpacing: "0.06em" } }, "SESI\xD3N GUARDADA"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.ink, marginTop: "2px", fontWeight: 500 } }, describeSession(s)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.inkMuted, marginTop: "1px" } }, formatDate(s.date), s.confidence && s.confidence !== "alta" ? ` \xB7 confianza ${s.confidence} \u2014 revisa en LOG` : ""))))));
 }
 function PlanTab({ C, goals, events, sessions, checkins, achievements, unlocked, onAddGoal, onUpdateGoal, onDeleteGoal, onAddEvent, onUpdateEvent, onDeleteEvent }) {
   const [view, setView] = useState("calendar");
@@ -2819,7 +2935,7 @@ function ProfileModal({ C, profile, sessions, achievements, onSave, onClose }) {
     letterSpacing: "0.06em",
     textTransform: "uppercase",
     cursor: "pointer"
-  } }, a.name)))), /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: save, style: { width: "100%", marginTop: "8px" } }, "Guardar cambios")), /* @__PURE__ */ React.createElement(ApiKeyCard, { C }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: "10px" } }, "Sobre"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkDim, lineHeight: 1.5 } }, "Coach personal \xB7 v5.4 (16 sep 2026)", /* @__PURE__ */ React.createElement("br", null), "Todos tus datos se guardan localmente y son solo tuyos."))));
+  } }, a.name)))), /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: save, style: { width: "100%", marginTop: "8px" } }, "Guardar cambios")), /* @__PURE__ */ React.createElement(ApiKeyCard, { C }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: "10px" } }, "Sobre"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkDim, lineHeight: 1.5 } }, "Coach personal \xB7 v6.0 (17 sep 2026)", /* @__PURE__ */ React.createElement("br", null), "Todos tus datos se guardan localmente y son solo tuyos."))));
 }
 function ApiKeyCard({ C }) {
   const [key, setKey] = useState(getApiKey());
