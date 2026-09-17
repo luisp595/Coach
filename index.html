@@ -257,6 +257,14 @@ const PATRONES = {
   "aductores": "Aductores",
   "core-antirotacion": "Core anti-rotaci\xF3n",
   "core-antiextension": "Core anti-extensi\xF3n",
+  "abdomen": "Abdomen",
+  "pecho-aislamiento": "Pecho (aislamiento)",
+  "biceps": "B\xEDceps",
+  "triceps": "Tr\xEDceps",
+  "hombro-lateral": "Hombro lateral y frontal",
+  "espalda-alta": "Espalda alta y trapecio",
+  "espalda-baja": "Espalda baja y lumbar",
+  "antebrazo": "Antebrazo y agarre",
   "pliometria": "Pliometr\xEDa"
 };
 const CATALOGO = [
@@ -335,7 +343,55 @@ const CATALOGO = [
   { id: "suitcase-carry", name: "Paseo del granjero a una mano", pattern: "core-antirotacion", sets: 3, reps: "30 m c/lado", rest: "60 s", hint: "" },
   { id: "plank", name: "Plancha frontal", pattern: "core-antiextension", sets: 3, reps: "45\u201360 s", rest: "45 s", hint: "" },
   { id: "ab-wheel", name: "Rueda abdominal", pattern: "core-antiextension", sets: 3, reps: "8\u201312", rest: "60 s", hint: "" },
-  { id: "hollow", name: "Hollow hold", pattern: "core-antiextension", sets: 3, reps: "30\u201345 s", rest: "45 s", hint: "" }
+  { id: "hollow", name: "Hollow hold", pattern: "core-antiextension", sets: 3, reps: "30\u201345 s", rest: "45 s", hint: "" },
+  // Pecho (aislamiento)
+  { id: "fly-db", name: "Aperturas con mancuernas", pattern: "pecho-aislamiento", sets: 3, reps: "12\u201315", rest: "75 s", hint: "Codos algo flexionados, sin forzar el hombro." },
+  { id: "cable-cross", name: "Cruces en polea", pattern: "pecho-aislamiento", sets: 3, reps: "12\u201315", rest: "60 s", hint: "Tensi\xF3n constante en todo el recorrido." },
+  { id: "pec-deck", name: "Pec deck (contractora)", pattern: "pecho-aislamiento", sets: 3, reps: "12\u201315", rest: "60 s", hint: "" },
+  { id: "pullover", name: "Pullover con mancuerna", pattern: "pecho-aislamiento", sets: 3, reps: "12\u201315", rest: "75 s", hint: "Pecho y dorsal, abre la caja tor\xE1cica." },
+  // Bíceps
+  { id: "curl-bar", name: "Curl con barra", pattern: "biceps", sets: 3, reps: "8\u201312", rest: "90 s", hint: "Sin balanceo de cadera." },
+  { id: "curl-db", name: "Curl alterno con mancuernas", pattern: "biceps", sets: 3, reps: "10\u201312 c/brazo", rest: "75 s", hint: "Supina al subir." },
+  { id: "curl-hammer", name: "Curl martillo", pattern: "biceps", sets: 3, reps: "10\u201312", rest: "75 s", hint: "Braquial y antebrazo." },
+  { id: "curl-incline", name: "Curl en banco inclinado", pattern: "biceps", sets: 3, reps: "10\u201312", rest: "75 s", hint: "M\xE1ximo estiramiento del b\xEDceps." },
+  { id: "curl-preacher", name: "Curl predicador", pattern: "biceps", sets: 3, reps: "10\u201312", rest: "75 s", hint: "A\xEDsla, elimina el impulso." },
+  { id: "curl-cable", name: "Curl en polea baja", pattern: "biceps", sets: 3, reps: "12\u201315", rest: "60 s", hint: "Tensi\xF3n constante." },
+  { id: "curl-concentration", name: "Curl concentrado", pattern: "biceps", sets: 3, reps: "12 c/brazo", rest: "60 s", hint: "Buen cierre de sesi\xF3n." },
+  // Tríceps
+  { id: "skullcrusher", name: "Press franc\xE9s", pattern: "triceps", sets: 3, reps: "10\u201312", rest: "90 s", hint: "Cuidado con los codos: sin dolor articular." },
+  { id: "tri-pushdown", name: "Extensi\xF3n en polea alta", pattern: "triceps", sets: 3, reps: "12\u201315", rest: "60 s", hint: "Codos pegados al cuerpo." },
+  { id: "tri-overhead", name: "Extensi\xF3n sobre la cabeza", pattern: "triceps", sets: 3, reps: "10\u201312", rest: "75 s", hint: "Cabeza larga del tr\xEDceps." },
+  { id: "close-grip", name: "Press banca agarre cerrado", pattern: "triceps", sets: 4, reps: "8\u201310", rest: "2 min", hint: "El m\xE1s pesado del grupo." },
+  { id: "bench-dips", name: "Fondos en banco", pattern: "triceps", sets: 3, reps: "12\u201315", rest: "60 s", hint: "Peso corporal." },
+  { id: "tri-kickback", name: "Patada de tr\xEDceps", pattern: "triceps", sets: 3, reps: "12\u201315 c/brazo", rest: "60 s", hint: "" },
+  // Hombro lateral y frontal
+  { id: "lateral-raise", name: "Elevaciones laterales", pattern: "hombro-lateral", sets: 4, reps: "12\u201315", rest: "60 s", hint: "Deltoides medio. Carga ligera, control alto." },
+  { id: "lateral-cable", name: "Elevaci\xF3n lateral en polea", pattern: "hombro-lateral", sets: 3, reps: "12\u201315 c/lado", rest: "60 s", hint: "Tensi\xF3n en todo el rango." },
+  { id: "front-raise", name: "Elevaci\xF3n frontal", pattern: "hombro-lateral", sets: 3, reps: "12\u201315", rest: "60 s", hint: "" },
+  { id: "upright-row", name: "Remo al ment\xF3n", pattern: "hombro-lateral", sets: 3, reps: "10\u201312", rest: "75 s", hint: "Agarre ancho para cuidar el hombro." },
+  // Espalda alta y trapecio
+  { id: "shrug-bar", name: "Encogimientos con barra", pattern: "espalda-alta", sets: 4, reps: "10\u201312", rest: "90 s", hint: "Trapecio superior. Pausa arriba." },
+  { id: "shrug-db", name: "Encogimientos con mancuernas", pattern: "espalda-alta", sets: 4, reps: "12\u201315", rest: "75 s", hint: "" },
+  { id: "high-row", name: "Remo alto en polea", pattern: "espalda-alta", sets: 3, reps: "12\u201315", rest: "75 s", hint: "Trapecio medio y romboides." },
+  { id: "prone-row", name: "Remo en banco inclinado prono", pattern: "espalda-alta", sets: 3, reps: "12\u201315", rest: "75 s", hint: "Postura: clave si pasas horas sentado." },
+  { id: "scap-pullup", name: "Retracciones escapulares en barra", pattern: "espalda-alta", sets: 3, reps: "10\u201312", rest: "60 s", hint: "Activaci\xF3n escapular." },
+  // Espalda baja y lumbar
+  { id: "hyperextension", name: "Hiperextensiones en banco", pattern: "espalda-baja", sets: 3, reps: "12\u201315", rest: "75 s", hint: "Sin hiperextender al final." },
+  { id: "back-ext-weighted", name: "Extensi\xF3n lumbar con disco", pattern: "espalda-baja", sets: 3, reps: "10\u201312", rest: "90 s", hint: "" },
+  { id: "bird-dog", name: "Bird dog", pattern: "espalda-baja", sets: 3, reps: "10 c/lado", rest: "45 s", hint: "Estabilidad lumbop\xE9lvica." },
+  { id: "superman", name: "Superman", pattern: "espalda-baja", sets: 3, reps: "12\u201315", rest: "45 s", hint: "Sin material." },
+  { id: "reverse-hyper", name: "Reverse hyper", pattern: "espalda-baja", sets: 3, reps: "12\u201315", rest: "75 s", hint: "Descarga la columna." },
+  // Abdomen
+  { id: "cable-crunch", name: "Crunch en polea alta", pattern: "abdomen", sets: 4, reps: "12\u201315", rest: "60 s", hint: "Recto abdominal con carga progresiva." },
+  { id: "hanging-leg", name: "Elevaci\xF3n de piernas colgado", pattern: "abdomen", sets: 3, reps: "10\u201315", rest: "75 s", hint: "Sin balancearse." },
+  { id: "reverse-crunch", name: "Crunch inverso", pattern: "abdomen", sets: 3, reps: "15\u201320", rest: "45 s", hint: "Abdomen inferior." },
+  { id: "v-up", name: "V-ups", pattern: "abdomen", sets: 3, reps: "12\u201315", rest: "60 s", hint: "" },
+  { id: "russian-twist", name: "Russian twist", pattern: "abdomen", sets: 3, reps: "20 total", rest: "45 s", hint: "Oblicuos." },
+  { id: "mountain-climber", name: "Mountain climbers", pattern: "abdomen", sets: 3, reps: "30 s", rest: "45 s", hint: "Metab\xF3lico, buen final." },
+  // Antebrazo y agarre
+  { id: "wrist-curl", name: "Curl de mu\xF1eca", pattern: "antebrazo", sets: 3, reps: "15\u201320", rest: "45 s", hint: "" },
+  { id: "farmer-walk", name: "Paseo del granjero", pattern: "antebrazo", sets: 3, reps: "40 m", rest: "90 s", hint: "Agarre y core." },
+  { id: "dead-hang", name: "Colgarse de la barra", pattern: "antebrazo", sets: 3, reps: "30\u201345 s", rest: "60 s", hint: "Descomprime el hombro." }
 ];
 const EJERCICIOS = {};
 CATALOGO.forEach((e) => {
@@ -1511,7 +1567,7 @@ function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, str
       fontSize: "12px",
       cursor: "pointer"
     } }, /* @__PURE__ */ React.createElement("div", { style: { width: "14px", height: "14px", flexShrink: 0, marginTop: "2px", background: done ? C.accent : "transparent", border: `1.5px solid ${done ? C.accent : C.borderStrong}`, borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "10px" } }, done ? "\u2713" : ""), /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 500, lineHeight: 1.25 } }, ex.name), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "14px", color: done ? C.accentText : C.accent, marginTop: "3px", letterSpacing: "0.03em" } }, ex.sets)));
-  }))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", margin: "8px 0 4px", color: C.inkFaint, fontFamily: FONT_MONO, fontSize: "10px", letterSpacing: "0.1em" } }, "coach \xB7 v5.3 \xB7 16 sep"));
+  }))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", margin: "8px 0 4px", color: C.inkFaint, fontFamily: FONT_MONO, fontSize: "10px", letterSpacing: "0.1em" } }, "coach \xB7 v5.4 \xB7 16 sep"));
 }
 function StatMini({ label, value, C, warn, good }) {
   const color = warn ? C.danger : good ? C.success : C.ink;
@@ -1811,20 +1867,37 @@ function GymSessionOverlay({ C, session, sessions, gymCustom, onSaveCustom, onCl
         titulo: `Cambiar ${ex.name}`,
         subtitulo: PATRONES[ex.pattern || (EJERCICIOS[ex.id] || {}).pattern] || "",
         lista: alts,
-        vacio: "No hay alternativas de este patr\xF3n sin usar.",
+        listaCompleta: CATALOGO.filter((a) => !ejercicios.some((x) => x.id === a.id)),
+        vacio: "No hay alternativas de este patr\xF3n sin usar. Toca \u201Cver todos\u201D para elegir cualquier otro.",
         onElegir: (nuevo) => cambiarPor(ex.id, nuevo),
         onCerrar: () => setCambiando(null)
       }
     );
   })(), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "20px" } }, /* @__PURE__ */ React.createElement(FormField, { label: "Notas de la sesi\xF3n", C }, /* @__PURE__ */ React.createElement(FormInput, { C, value: notes, onChange: setNotes, placeholder: "Sensaciones, cargas, ajustes\u2026", multiline: true }))), confirmando && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "16px", padding: "13px 15px", background: confirmando === "cerrar" ? C.dangerBg : C.warningBg, border: `1px solid ${confirmando === "cerrar" ? C.danger : C.warning}`, borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: C.ink, lineHeight: 1.45, fontWeight: 500 } }, confirmando === "cerrar" ? `Tienes ${loggedSets} ${loggedSets === 1 ? "serie registrada" : "series registradas"}. Si sales, se descartan.` : "No registraste ninguna serie. \xBFGuardar la sesi\xF3n igual?"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", marginTop: "10px" } }, /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: () => setConfirmando(null), style: { flex: 1 } }, "Volver"), confirmando === "cerrar" ? /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: tryClose, style: { flex: 1, borderColor: C.danger, color: C.danger } }, "Descartar") : /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: finish, style: { flex: 1 } }, "Guardar"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "10px", marginTop: "20px", marginBottom: "20px" } }, /* @__PURE__ */ React.createElement(GhostButton, { onClick: tryClose, C, style: { flex: 1 } }, "Cancelar"), /* @__PURE__ */ React.createElement(AccentButton, { onClick: finish, C, style: { flex: 2 } }, "Finalizar"))));
 }
-function SelectorEjercicio({ C, titulo, subtitulo, lista, onElegir, onCerrar, vacio, agrupar }) {
+function SelectorEjercicio({ C, titulo, subtitulo, lista, listaCompleta, onElegir, onCerrar, vacio, agrupar }) {
+  const [busqueda, setBusqueda] = useState("");
+  const [verTodo, setVerTodo] = useState(false);
+  const fuente = verTodo && listaCompleta ? listaCompleta : lista;
+  const q = busqueda.trim().toLowerCase();
+  const filtrada = q ? (listaCompleta || lista).filter((e) => e.name.toLowerCase().includes(q) || (PATRONES[e.pattern] || "").toLowerCase().includes(q)) : fuente;
   const grupos = {};
-  lista.forEach((e) => {
+  filtrada.forEach((e) => {
     (grupos[e.pattern] = grupos[e.pattern] || []).push(e);
   });
-  const claves = Object.keys(grupos);
-  return /* @__PURE__ */ React.createElement("div", { className: "fade-in", style: { background: C.card, border: `1px solid ${C.accent}`, borderRadius: "12px", padding: "14px", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "10px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "16px", color: C.ink, textTransform: "uppercase", lineHeight: 1.1 } }, titulo), subtitulo && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.accent, marginTop: "3px", fontWeight: 600 } }, subtitulo)), /* @__PURE__ */ React.createElement("button", { onClick: onCerrar, style: { background: "none", border: "none", color: C.inkMuted, fontSize: "18px", cursor: "pointer", padding: 0 } }, "\xD7")), lista.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkMuted } }, vacio || "Nada disponible."), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: "320px", overflowY: "auto" } }, claves.map((k) => /* @__PURE__ */ React.createElement("div", { key: k, style: { marginBottom: "10px" } }, agrupar && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.inkMuted, letterSpacing: "0.08em", fontWeight: 700, margin: "8px 0 6px" } }, (PATRONES[k] || k).toUpperCase()), grupos[k].map((e) => /* @__PURE__ */ React.createElement("button", { key: e.id, onClick: () => onElegir(e), style: {
+  const claves = Object.keys(grupos).sort((a, b) => (PATRONES[a] || a).localeCompare(PATRONES[b] || b));
+  const porGrupo = agrupar || verTodo || !!q;
+  return /* @__PURE__ */ React.createElement("div", { className: "fade-in", style: { background: C.card, border: `1px solid ${C.accent}`, borderRadius: "12px", padding: "14px", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "16px", color: C.ink, textTransform: "uppercase", lineHeight: 1.1 } }, titulo), subtitulo && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.accent, marginTop: "3px", fontWeight: 600 } }, subtitulo)), /* @__PURE__ */ React.createElement("button", { onClick: onCerrar, style: { background: "none", border: "none", color: C.inkMuted, fontSize: "18px", cursor: "pointer", padding: 0, flexShrink: 0 } }, "\xD7")), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      value: busqueda,
+      onChange: (e) => setBusqueda(e.target.value),
+      placeholder: "Buscar: b\xEDceps, sentadilla, abdomen\u2026",
+      autoCapitalize: "none",
+      autoCorrect: "off",
+      style: { width: "100%", padding: "10px 12px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: "8px", color: C.ink, fontFamily: FONT_BODY, boxSizing: "border-box", outline: "none", marginBottom: "10px" }
+    }
+  ), listaCompleta && !q && /* @__PURE__ */ React.createElement("button", { onClick: () => setVerTodo(!verTodo), style: { width: "100%", padding: "9px", marginBottom: "10px", background: verTodo ? C.accentBg : "transparent", border: `1px solid ${verTodo ? C.accent : C.border}`, borderRadius: "8px", color: verTodo ? C.accentText : C.inkDim, fontFamily: FONT_DISPLAY, fontSize: "12px", fontWeight: 700, letterSpacing: "0.06em", cursor: "pointer" } }, verTodo ? "SOLO EL MISMO PATR\xD3N" : "VER TODOS LOS EJERCICIOS"), filtrada.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkMuted, padding: "8px 0" } }, q ? `Nada coincide con "${busqueda}".` : vacio || "Nada disponible."), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: "340px", overflowY: "auto" } }, claves.map((k) => /* @__PURE__ */ React.createElement("div", { key: k, style: { marginBottom: "8px" } }, porGrupo && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.inkMuted, letterSpacing: "0.08em", fontWeight: 700, margin: "8px 0 6px" } }, (PATRONES[k] || k).toUpperCase()), grupos[k].map((e) => /* @__PURE__ */ React.createElement("button", { key: e.id, onClick: () => onElegir(e), style: {
     width: "100%",
     textAlign: "left",
     padding: "11px 12px",
@@ -1835,7 +1908,7 @@ function SelectorEjercicio({ C, titulo, subtitulo, lista, onElegir, onCerrar, va
     cursor: "pointer",
     fontFamily: FONT_BODY,
     color: C.ink
-  } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: 600 } }, e.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "2px" } }, e.sets, " \xD7 ", e.reps, " \xB7 descanso ", e.rest, e.hint ? " \xB7 " + e.hint : "")))))));
+  } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: 600 } }, e.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "2px", lineHeight: 1.35 } }, e.sets, " \xD7 ", e.reps, " \xB7 descanso ", e.rest, e.hint ? " \xB7 " + e.hint : "")))))));
 }
 function ExerciseBlock({ C, ex, idx, sets, expanded, onExpand, onUpdate, onMarkDone, prev, editando, onCambiar, onQuitar }) {
   const doneCount = sets.filter((s) => s.done).length;
@@ -2746,7 +2819,7 @@ function ProfileModal({ C, profile, sessions, achievements, onSave, onClose }) {
     letterSpacing: "0.06em",
     textTransform: "uppercase",
     cursor: "pointer"
-  } }, a.name)))), /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: save, style: { width: "100%", marginTop: "8px" } }, "Guardar cambios")), /* @__PURE__ */ React.createElement(ApiKeyCard, { C }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: "10px" } }, "Sobre"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkDim, lineHeight: 1.5 } }, "Coach personal \xB7 v5.3 (16 sep 2026)", /* @__PURE__ */ React.createElement("br", null), "Todos tus datos se guardan localmente y son solo tuyos."))));
+  } }, a.name)))), /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: save, style: { width: "100%", marginTop: "8px" } }, "Guardar cambios")), /* @__PURE__ */ React.createElement(ApiKeyCard, { C }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: "10px" } }, "Sobre"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkDim, lineHeight: 1.5 } }, "Coach personal \xB7 v5.4 (16 sep 2026)", /* @__PURE__ */ React.createElement("br", null), "Todos tus datos se guardan localmente y son solo tuyos."))));
 }
 function ApiKeyCard({ C }) {
   const [key, setKey] = useState(getApiKey());
