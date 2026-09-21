@@ -1183,6 +1183,15 @@ function App() {
   const [celebrating, setCelebrating] = useState(null);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
+    try {
+      if (typeof navigator !== "undefined" && navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().catch(() => {
+        });
+      }
+    } catch (e) {
+    }
+  }, []);
+  useEffect(() => {
     async function init() {
       const p = await loadFromStorage("profile", null);
       setProfile(p === null ? DEFAULT_PROFILE : p);
@@ -1359,6 +1368,12 @@ function App() {
       setExercisesDone(next);
       await saveToStorage("exercisesDone", next);
     }
+    if (payload.planOverrides && typeof payload.planOverrides === "object") {
+      const next = mode === "replace" ? payload.planOverrides : { ...payload.planOverrides, ...overridesRef.current };
+      overridesRef.current = next;
+      setPlanOverrides(next);
+      await saveToStorage("planOverrides", next);
+    }
     if (payload.gymCustom && typeof payload.gymCustom === "object") {
       const next = mode === "replace" ? payload.gymCustom : { ...payload.gymCustom, ...gymCustom };
       setGymCustom(next);
@@ -1478,6 +1493,7 @@ function App() {
       exercisesDone,
       unlocked,
       gymCustom,
+      planOverrides,
       onImport: importData
     }
   )), /* @__PURE__ */ React.createElement(TabBar, { C, tab, setTab }), activeGymSession && /* @__PURE__ */ React.createElement(GymSessionOverlay, { C, session: activeGymSession, sessions, gymCustom, onSaveCustom: saveGymCustom, onClose: closeGymSession, onFinish: finishGymSession }), showProfile && /* @__PURE__ */ React.createElement(ProfileModal, { C, profile, sessions, achievements, onSave: persistProfile, onClose: () => setShowProfile(false) }), celebrating && /* @__PURE__ */ React.createElement(AchievementToast, { C, achievement: celebrating, onClose: () => setCelebrating(null) }));
@@ -1670,7 +1686,7 @@ function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, str
       fontSize: "12px",
       cursor: "pointer"
     } }, /* @__PURE__ */ React.createElement("div", { style: { width: "14px", height: "14px", flexShrink: 0, marginTop: "2px", background: done ? C.accent : "transparent", border: `1.5px solid ${done ? C.accent : C.borderStrong}`, borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "10px" } }, done ? "\u2713" : ""), /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 500, lineHeight: 1.25 } }, ex.name), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "14px", color: done ? C.accentText : C.accent, marginTop: "3px", letterSpacing: "0.03em" } }, ex.sets)));
-  }))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", margin: "8px 0 4px", color: C.inkFaint, fontFamily: FONT_MONO, fontSize: "10px", letterSpacing: "0.1em" } }, "coach \xB7 v6.0 \xB7 17 sep"));
+  }))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", margin: "8px 0 4px", color: C.inkFaint, fontFamily: FONT_MONO, fontSize: "10px", letterSpacing: "0.1em" } }, "coach \xB7 v6.2 \xB7 17 sep"));
 }
 function StatMini({ label, value, C, warn, good }) {
   const color = warn ? C.danger : good ? C.success : C.ink;
@@ -2604,7 +2620,7 @@ function GoalForm({ C, initial, onSubmit, onCancel }) {
   };
   return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(FormField, { label: "Tipo", C }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px" } }, Object.entries(GOAL_TYPES).map(([k, v]) => /* @__PURE__ */ React.createElement(Pill, { key: k, C, active: type === k, onClick: () => setType(k) }, v.label)))), /* @__PURE__ */ React.createElement(FormField, { label: "T\xEDtulo", C }, /* @__PURE__ */ React.createElement(FormInput, { C, value: title, onChange: setTitle, placeholder: "Ej: Marat\xF3n 2027" })), /* @__PURE__ */ React.createElement(FormField, { label: "Fecha objetivo", C }, /* @__PURE__ */ React.createElement(FormInput, { C, value: targetDate, onChange: setTargetDate, type: "date" })), (type === "marathon" || type === "race") && /* @__PURE__ */ React.createElement(FormField, { label: "Km/semana objetivo", C }, /* @__PURE__ */ React.createElement(FormInput, { C, value: weeklyKmTarget, onChange: setWeeklyKmTarget, placeholder: "50" })), type === "race" && /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" } }, /* @__PURE__ */ React.createElement(FormField, { label: "Marca actual", C }, /* @__PURE__ */ React.createElement(FormInput, { C, value: currentBest, onChange: setCurrentBest, placeholder: "53:00" })), /* @__PURE__ */ React.createElement(FormField, { label: "Objetivo", C }, /* @__PURE__ */ React.createElement(FormInput, { C, value: targetTime, onChange: setTargetTime, placeholder: "45:00" }))), /* @__PURE__ */ React.createElement(FormField, { label: "Notas", C }, /* @__PURE__ */ React.createElement(FormInput, { C, value: notes, onChange: setNotes, placeholder: "Contexto\u2026", multiline: true })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", marginTop: "14px" } }, /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: submit, style: { flex: 1 } }, "Guardar"), onCancel && /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: onCancel, style: { flex: 1 } }, "Cancelar")));
 }
-function LogTab({ C, sessions, checkins, onAddSession, onDeleteSession, onUpdateSession, profile, goals, events, exercisesDone, unlocked, gymCustom, onImport }) {
+function LogTab({ C, sessions, checkins, onAddSession, onDeleteSession, onUpdateSession, profile, goals, events, exercisesDone, unlocked, gymCustom, planOverrides, onImport }) {
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState("all");
   const filtered = useMemo(() => {
@@ -2633,7 +2649,7 @@ function LogTab({ C, sessions, checkins, onAddSession, onDeleteSession, onUpdate
     return w;
   }, [sessions]);
   const [exportText, setExportText] = useState(null);
-  const snapshot = () => JSON.stringify({ exported: (/* @__PURE__ */ new Date()).toISOString(), profile, goals, events, sessions, checkins, exercisesDone, unlocked, gymCustom }, null, 2);
+  const snapshot = () => JSON.stringify({ exported: (/* @__PURE__ */ new Date()).toISOString(), profile, goals, events, sessions, checkins, exercisesDone, unlocked, gymCustom, planOverrides }, null, 2);
   const exportData = () => {
     const json = snapshot();
     try {
@@ -2909,7 +2925,7 @@ function SessionCard({ C, session, onDelete, onUpdate }) {
       }
     ));
   }
-  return /* @__PURE__ */ React.createElement("div", { className: "fade-in", style: { background: C.card, border: `1px solid ${warn ? C.danger : C.border}`, borderLeft: `4px solid ${warn ? C.danger : C.accent}`, borderRadius: "10px", padding: "12px 14px", marginBottom: "8px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "8px" } }, /* @__PURE__ */ React.createElement(Label, { color: C.accent }, t.label.toUpperCase()), session.notes && session.notes.startsWith("Importado desde imagen") && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "9px", color: C.inkMuted, background: C.surface, padding: "2px 6px", borderRadius: "4px", letterSpacing: "0.06em", fontWeight: 700 } }, "\u{1F4F7} AUTO")), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: C.inkMuted, fontWeight: 500 } }, formatDate(session.date))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: C.ink, fontWeight: 500 } }, gymTpl ? gymTpl.name : [session.distance && `${session.distance} km`, session.elevation && `${session.elevation} m+`, session.duration && `${session.duration} min`, session.pace && `${session.pace}/km`, session.altitudeMax && `m\xE1x ${session.altitudeMax} m`, session.surface].filter(Boolean).join(" \xB7 ") || "\u2014"), gymTpl && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "3px", fontWeight: 500 } }, session.duration, " min \xB7 volumen ", totalVolume.toFixed(0), " kg"), session.exerciseLog && /* @__PURE__ */ React.createElement("button", { onClick: () => setExpanded(!expanded), style: { background: "none", border: "none", color: C.accent, fontSize: "11px", fontFamily: FONT_DISPLAY, letterSpacing: "0.08em", cursor: "pointer", padding: "6px 0 0", fontWeight: 700 } }, expanded ? "OCULTAR" : "VER DETALLES"), expanded && session.exerciseLog && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "8px", padding: "10px", background: C.surface, borderRadius: "6px" } }, Object.entries(session.exerciseLog).map(([exId, sets]) => {
+  return /* @__PURE__ */ React.createElement("div", { className: "fade-in", style: { background: C.card, border: `1px solid ${warn ? C.danger : C.border}`, borderLeft: `4px solid ${warn ? C.danger : C.accent}`, borderRadius: "10px", padding: "12px 14px", marginBottom: "8px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "8px" } }, /* @__PURE__ */ React.createElement(Label, { color: C.accent }, t.label.toUpperCase()), session.notes && session.notes.startsWith("Importado desde imagen") && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "9px", color: C.inkMuted, background: C.surface, padding: "2px 6px", borderRadius: "4px", letterSpacing: "0.06em", fontWeight: 700 } }, "\u{1F4F7} AUTO")), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: C.inkMuted, fontWeight: 500 } }, formatDate(session.date))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: C.ink, fontWeight: 500 } }, gymTpl ? gymTpl.name : [session.distance && `${session.distance} km`, session.elevation && `${session.elevation} m+`, session.duration && `${session.duration} min`, session.pace && `${session.pace}/km`, session.altitudeMax && `m\xE1x ${session.altitudeMax} m`, session.surface].filter(Boolean).join(" \xB7 ") || "\u2014"), gymTpl && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "3px", fontWeight: 500 } }, session.duration ? `${session.duration} min \xB7 ` : "", "volumen ", totalVolume.toFixed(0), " kg"), session.exerciseLog && /* @__PURE__ */ React.createElement("button", { onClick: () => setExpanded(!expanded), style: { background: "none", border: "none", color: C.accent, fontSize: "11px", fontFamily: FONT_DISPLAY, letterSpacing: "0.08em", cursor: "pointer", padding: "6px 0 0", fontWeight: 700 } }, expanded ? "OCULTAR" : "VER DETALLES"), expanded && session.exerciseLog && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "8px", padding: "10px", background: C.surface, borderRadius: "6px" } }, Object.entries(session.exerciseLog).map(([exId, sets]) => {
     const exDef = Object.values(GYM_TEMPLATES).flatMap((t2) => t2.exercises).find((e) => e.id === exId);
     return /* @__PURE__ */ React.createElement("div", { key: exId, style: { marginBottom: "6px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.ink, fontWeight: 600 } }, exDef?.name || exId), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkDim, marginTop: "2px", fontFamily: FONT_MONO } }, sets.map((s) => `${s.reps || "?"}\xD7${s.weight || "?"}kg`).join(" \xB7 ")));
   })), session.symptoms && session.symptoms !== "ninguno" && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", marginTop: "6px", color: warn ? C.danger : C.inkMuted, fontWeight: 500 } }, "S\xEDntomas: ", session.symptoms), session.notes && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkDim, marginTop: "4px", lineHeight: 1.4 } }, session.notes), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "14px", alignItems: "center", marginTop: "8px", paddingTop: "8px", borderTop: `1px solid ${C.border}` } }, onUpdate && /* @__PURE__ */ React.createElement("button", { onClick: () => setEditando(true), style: miniAction(C.inkMuted) }, "EDITAR"), onDelete && !confirmarBorrado && /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmarBorrado(true), style: { ...miniAction(C.inkFaint), marginLeft: "auto" } }, "ELIMINAR"), onDelete && confirmarBorrado && /* @__PURE__ */ React.createElement("div", { style: { marginLeft: "auto", display: "flex", gap: "12px" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmarBorrado(false), style: miniAction(C.inkMuted) }, "CANCELAR"), /* @__PURE__ */ React.createElement("button", { onClick: onDelete, style: miniAction(C.danger) }, "CONFIRMAR"))));
@@ -2935,7 +2951,10 @@ function ProfileModal({ C, profile, sessions, achievements, onSave, onClose }) {
     letterSpacing: "0.06em",
     textTransform: "uppercase",
     cursor: "pointer"
-  } }, a.name)))), /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: save, style: { width: "100%", marginTop: "8px" } }, "Guardar cambios")), /* @__PURE__ */ React.createElement(ApiKeyCard, { C }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: "10px" } }, "Sobre"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkDim, lineHeight: 1.5 } }, "Coach personal \xB7 v6.0 (17 sep 2026)", /* @__PURE__ */ React.createElement("br", null), "Todos tus datos se guardan localmente y son solo tuyos."))));
+  } }, a.name)))), /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: save, style: { width: "100%", marginTop: "8px" } }, "Guardar cambios")), /* @__PURE__ */ React.createElement(ApiKeyCard, { C }), /* @__PURE__ */ React.createElement(Card, { C, style: { marginBottom: "14px" } }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: "10px" } }, "Actualizar la app"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkDim, lineHeight: 1.5, marginBottom: "12px" } }, "Cuando subas una versi\xF3n nueva, usa este bot\xF3n. ", /* @__PURE__ */ React.createElement("strong", { style: { color: C.danger } }, "Nunca elimines el \xEDcono de la pantalla de inicio"), ": en iPhone eso borra todos tus datos."), /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: () => {
+    const url = window.location.origin + window.location.pathname + "?v=" + Date.now();
+    window.location.replace(url);
+  }, style: { width: "100%" } }, "Buscar actualizaci\xF3n")), /* @__PURE__ */ React.createElement(StorageDiag, { C }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: "10px" } }, "Sobre"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkDim, lineHeight: 1.5 } }, "Coach personal \xB7 v6.2 (17 sep 2026)", /* @__PURE__ */ React.createElement("br", null), "Todos tus datos se guardan localmente y son solo tuyos."))));
 }
 function ApiKeyCard({ C }) {
   const [key, setKey] = useState(getApiKey());
@@ -3010,6 +3029,40 @@ function ApiKeyCard({ C }) {
       fontFamily: FONT_BODY
     } }, /* @__PURE__ */ React.createElement("div", { style: { width: "15px", height: "15px", flexShrink: 0, borderRadius: "50%", border: `2px solid ${activo ? C.accent : C.borderStrong}`, background: activo ? C.accent : "transparent", boxShadow: activo ? `inset 0 0 0 2.5px #fff` : "none" } }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", fontWeight: 600, color: activo ? C.accentText : C.ink } }, m.name), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: activo ? C.accentText : C.inkMuted, marginTop: "2px", opacity: 0.9 } }, m.desc, " \xB7 ", m.cost)));
   }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", marginTop: "14px" } }, /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: guardar, style: { flex: 2 } }, saved ? "Guardado \u2713" : "Guardar"), /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: probar, disabled: !key.trim() || testing, style: { flex: 1 } }, testing ? "\u2026" : "Probar")), result && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "10px", padding: "10px 12px", borderRadius: "8px", background: result.ok ? C.successBg : C.dangerBg, border: `1px solid ${result.ok ? C.success : C.danger}` } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: result.ok ? C.success : C.danger, fontWeight: 600, lineHeight: 1.45, fontFamily: result.ok ? FONT_BODY : FONT_MONO } }, result.msg)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "12px", lineHeight: 1.5 } }, "Consigue una en console.anthropic.com \u2192 API Keys. Crea una exclusiva para esta app con l\xEDmite de gasto, as\xED puedes revocarla sin afectar nada m\xE1s."));
+}
+function StorageDiag({ C }) {
+  const [abierto, setAbierto] = useState(false);
+  const [datos, setDatos] = useState(null);
+  const leer = async () => {
+    try {
+      const prefijo = "coach:";
+      const items = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k || !k.startsWith(prefijo)) continue;
+        const v = localStorage.getItem(k) || "";
+        let n = null;
+        try {
+          const o = JSON.parse(v);
+          n = Array.isArray(o) ? o.length : o && typeof o === "object" ? Object.keys(o).length : null;
+        } catch (e) {
+        }
+        items.push({ clave: k.slice(prefijo.length), bytes: v.length, n });
+      }
+      setDatos({ items, modo: window.navigator.standalone === true ? "App de pantalla de inicio" : "Navegador (Safari)" });
+    } catch (e) {
+      setDatos({ error: String(e && e.message || e) });
+    }
+  };
+  useEffect(() => {
+    if (abierto && !datos) leer();
+  }, [abierto]);
+  const total = datos && datos.items ? datos.items.reduce((a, x) => a + x.bytes, 0) : 0;
+  const ses = datos && datos.items ? datos.items.find((x) => x.clave === "sessions") : null;
+  return /* @__PURE__ */ React.createElement(Card, { C, style: { marginBottom: "14px" } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setAbierto(!abierto), style: { width: "100%", background: "none", border: "none", padding: 0, textAlign: "left", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement(Label, null, "Diagn\xF3stico de almacenamiento"), /* @__PURE__ */ React.createElement("span", { style: { color: C.inkMuted, fontSize: "15px" } }, abierto ? "\u2212" : "+")), abierto && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "12px" } }, !datos && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkMuted } }, "Leyendo\u2026"), datos && datos.error && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.danger, fontFamily: FONT_MONO } }, datos.error), datos && datos.items && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { style: { padding: "10px 12px", background: C.surface, borderRadius: "8px", marginBottom: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.inkMuted, letterSpacing: "0.08em", fontWeight: 700 } }, "CONTEXTO"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: C.ink, marginTop: "3px", fontWeight: 600 } }, datos.modo), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "4px", lineHeight: 1.45 } }, "En iPhone, el \xEDcono de la pantalla de inicio y Safari guardan los datos por separado, y eliminar el \xEDcono borra sus datos. Respalda desde LOG con frecuencia.")), /* @__PURE__ */ React.createElement("div", { style: { padding: "11px 13px", background: ses && ses.n > 0 ? C.successBg : C.dangerBg, border: `1px solid ${ses && ses.n > 0 ? C.success : C.danger}`, borderRadius: "8px", marginBottom: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: C.ink, fontWeight: 600 } }, ses && ses.n > 0 ? `\u2713 ${ses.n} sesiones en este almacenamiento` : "\u2717 Ninguna sesi\xF3n en este almacenamiento")), datos.items.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkMuted } }, "El almacenamiento est\xE1 completamente vac\xEDo."), datos.items.map((x) => /* @__PURE__ */ React.createElement("div", { key: x.clave, style: { display: "flex", justifyContent: "space-between", fontSize: "12px", padding: "5px 0", borderBottom: `1px solid ${C.border}` } }, /* @__PURE__ */ React.createElement("span", { style: { color: C.ink, fontFamily: FONT_MONO } }, x.clave), /* @__PURE__ */ React.createElement("span", { style: { color: C.inkMuted } }, x.n !== null ? x.n + " \xB7 " : "", (x.bytes / 1024).toFixed(1), " KB"))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "10px" } }, "Total: ", (total / 1024).toFixed(1), " KB"), /* @__PURE__ */ React.createElement(GhostButton, { C, onClick: () => {
+    setDatos(null);
+    leer();
+  }, style: { width: "100%", marginTop: "10px" } }, "Releer"))));
 }
 function FormField({ label, C, children }) {
   return /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "14px" } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: "11px", color: C.inkMuted, marginBottom: "6px", letterSpacing: "0.08em", fontWeight: 600, textTransform: "uppercase" } }, label), children);
