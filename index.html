@@ -701,7 +701,7 @@ function computeAchievements(state) {
   });
 }
 function buildSystemPrompt(profile) {
-  return `Eres el coach personal de ${profile.name}, deportista amateur en Santiago de Chile: corredor (asfalto, trail, cinta), f\xFAtbol en pasto sint\xE9tico y trekking en la cordillera central. Nivel gimnasio intermedio, 1+ a\xF1o regular, gimnasio completo. Ritmos ~6:20\u20136:30/km, 10K PR 53:00 (objetivo sub-45). Base de trekking hasta 30 km / 2.400 m+.
+  return `Eres el coach personal de ${profile.name}, deportista amateur en Santiago de Chile: corredor (asfalto, trail, cinta), f\xFAtbol en pasto sint\xE9tico y trekking en la cordillera central. Nivel gimnasio intermedio, 1+ a\xF1o regular, gimnasio completo. Rodaje habitual ~6:20\u20136:30/km (es su ritmo F\xC1CIL, no su ritmo de carrera), 10K PR 53:00 (objetivo sub-45). Base de trekking hasta 30 km / 2.400 m+.
 
 ESTADO M\xC9DICO (septiembre 2026): su m\xE9dico lo evalu\xF3 con ex\xE1menes y lo dio de ALTA COMPLETA \u2014 apto para cualquier deporte sin restricciones. Indicaci\xF3n: retomar de forma algo m\xE1s ligera de lo habitual durante los primeros d\xEDas, y luego carga normal.
 Antecedentes ya resueltos, solo como contexto: placa en tobillo izquierdo, periostitis tibial derecha recuperada. NO los trates como limitaci\xF3n activa ni le recuerdes la lesi\xF3n sin motivo: est\xE1 dado de alta. Sigue el monitoreo normal de s\xEDntomas que har\xEDas con cualquier atleta, sin sobreproteger ni recortar el plan por precauci\xF3n.
@@ -727,6 +727,14 @@ SOBRECARGA PROGRESIVA: si complet\xF3 el tope del rango de repeticiones en todas
 ADAPTACI\xD3N POR EVENTOS: el d\xEDa del evento reemplaza la sesi\xF3n; 1 d\xEDa antes descarga; 2\u20133 d\xEDas antes baja carga de piernas si el evento las involucra.
 
 REGLAS: m\xE1x 10% de incremento semanal en km de impacto. No dos d\xEDas seguidos de alto impacto. Bajadas t\xE9cnicas r\xE1pidas solo con tibia y tobillo asintom\xE1ticos. Preferir manejo no farmacol\xF3gico.
+
+RITMOS \u2014 REGLA ESTRICTA:
+En el contexto recibes sus ZONAS DE RITMO calculadas con la f\xF3rmula de Daniels desde su marca real. \xDAsalas SIEMPRE que prescribas un ritmo, con estos nombres: F\xE1cil, Marat\xF3n, Umbral, Intervalos, Repeticiones.
+- NUNCA inventes, estimes ni redondees un ritmo propio. Si una sesi\xF3n necesita un ritmo, t\xF3malo de la zona que corresponde.
+- "Ritmo de 10K" significa su ritmo de carrera de 10K, que tambi\xE9n viene en el contexto. No lo confundas con el ritmo f\xE1cil.
+- Para cinta, da tambi\xE9n los km/h que vienen en el contexto: es como \xE9l ajusta la m\xE1quina.
+- Rodajes, recuperaci\xF3n y long run van en zona F\xE1cil. Tempo en Umbral. Series de 3\u20135 min en Intervalos. Tramos cortos de 200\u2013400 m en Repeticiones.
+- Si le falta una marca para calcular zonas, dile que registre su marca en PLAN \u2192 Objetivos, en vez de suponer ritmos.
 
 FORMATO: resumen breve, plan concreto (qu\xE9, cu\xE1ndo, cu\xE1nto), c\xF3mo medir, cu\xE1ndo ajustar o parar.
 
@@ -899,6 +907,81 @@ function timeToSec(t) {
 function secToTime(s) {
   const m = Math.floor(s / 60), sec = s % 60;
   return `${m}:${String(sec).padStart(2, "0")}`;
+}
+const vo2DeVelocidad = (v) => -4.6 + 0.182258 * v + 104e-6 * v * v;
+const fraccionVO2 = (t) => 0.8 + 0.1894393 * Math.exp(-0.012778 * t) + 0.2989558 * Math.exp(-0.1932605 * t);
+const velocidadDeVO2 = (vo2) => {
+  const a = 104e-6, b = 0.182258, c = -4.6 - vo2;
+  return (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a);
+};
+function calcVDOT(metros, segundos) {
+  if (!metros || !segundos) return null;
+  const t = segundos / 60;
+  return vo2DeVelocidad(metros / t) / fraccionVO2(t);
+}
+function predecirTiempo(vdot, metros) {
+  let lo = metros / 1e3 * 120, hi = metros / 1e3 * 900;
+  for (let i = 0; i < 80; i++) {
+    const mid = (lo + hi) / 2;
+    if (calcVDOT(metros, mid) > vdot) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+const segPorKm = (velMmin) => 6e4 / velMmin;
+const kmh = (velMmin) => Math.round(velMmin * 0.06 * 10) / 10;
+function fmtRitmo(seg) {
+  const s = Math.round(seg);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+function fmtTiempo(seg) {
+  const s = Math.round(seg), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return h ? `${h}:${String(m).padStart(2, "0")}:${String(x).padStart(2, "0")}` : `${m}:${String(x).padStart(2, "0")}`;
+}
+function zonasDeRitmo(vdot) {
+  if (!vdot || !isFinite(vdot)) return null;
+  const z = (f) => velocidadDeVO2(f * vdot);
+  const vM = 42195 / predecirTiempo(vdot, 42195) * 60;
+  const zona = (id, nombre, uso, vRapida, vLenta) => ({
+    id,
+    nombre,
+    uso,
+    rapido: segPorKm(vRapida),
+    lento: segPorKm(vLenta ?? vRapida),
+    kmhRapido: kmh(vRapida),
+    kmhLento: kmh(vLenta ?? vRapida)
+  });
+  return [
+    zona("E", "F\xE1cil", "Rodajes, recuperaci\xF3n y long run. Conversacional. La mayor parte del volumen.", z(0.7), z(0.62)),
+    zona("M", "Marat\xF3n", "Ritmo de carrera del marat\xF3n. Bloques dentro del long run.", vM),
+    zona("T", "Umbral", "Tempo continuo de ~20 min o cruceros de 3\u20134 \xD7 8\u201310 min.", z(0.88)),
+    zona("I", "Intervalos", "Series de 3\u20135 min con recuperaci\xF3n similar. M\xE1x. 8 % del volumen semanal.", z(0.975)),
+    zona("R", "Repeticiones", "Tramos de 200\u2013400 m con recuperaci\xF3n completa. Velocidad y econom\xEDa.", z(1.05))
+  ];
+}
+function perfilDeRitmo(goals) {
+  const g = (goals || []).find((x) => x.type === "race" && !x.completed && x.currentBest);
+  if (!g) return null;
+  const dist = /21|media/i.test(g.title) ? 21097.5 : /42|marat/i.test(g.title) ? 42195 : /5\s?k/i.test(g.title) ? 5e3 : 1e4;
+  const segundos = timeToSec(g.currentBest);
+  const vdot = calcVDOT(dist, segundos);
+  if (!vdot || vdot < 20 || vdot > 90) return null;
+  const vdotObjetivo = g.targetTime ? calcVDOT(dist, timeToSec(g.targetTime)) : null;
+  return {
+    vdot,
+    vdotObjetivo,
+    distancia: dist,
+    marca: g.currentBest,
+    objetivo: g.targetTime,
+    zonas: zonasDeRitmo(vdot),
+    predicciones: [
+      { dist: "5K", seg: predecirTiempo(vdot, 5e3), m: 5e3 },
+      { dist: "10K", seg: predecirTiempo(vdot, 1e4), m: 1e4 },
+      { dist: "Media", seg: predecirTiempo(vdot, 21097.5), m: 21097.5 },
+      { dist: "Marat\xF3n", seg: predecirTiempo(vdot, 42195), m: 42195 }
+    ],
+    ritmoCarrera: segundos / (dist / 1e3)
+  };
 }
 function greetingFor(hour, name) {
   if (hour < 6) return `A\xFAn de madrugada, ${name}`;
@@ -1763,6 +1846,7 @@ function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, str
   const doneToday = exercisesDone[todayISO()] || [];
   const prehabPct = Math.round(doneToday.length / PREHAB.length * 100);
   const marathon = goals.find((g) => g.type === "marathon" && !g.completed);
+  const ritmos = useMemo(() => perfilDeRitmo(goals), [goals]);
   const roadmap = useMemo(() => marathon ? marathonRoadmap(sessions, marathon) : null, [sessions, marathon]);
   const raceGoal = goals.find((g) => g.type === "race" && !g.completed);
   const weekKmRun = sessions.filter((s) => RUN_IDS.includes(s.type) && daysAgo(s.date) <= 7).reduce((a, s) => a + (parseFloat(s.distance) || 0), 0);
@@ -1781,7 +1865,7 @@ function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, str
     }
     return arr;
   }, [events, sessions, planOverrides]);
-  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { className: "fade-in", style: { marginBottom: "2px" } }, /* @__PURE__ */ React.createElement(Label, null, (/* @__PURE__ */ new Date()).toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "28px", color: C.ink, marginTop: "4px", lineHeight: 1 } }, greeting.toUpperCase())), /* @__PURE__ */ React.createElement(TodayCard, { C, plan, onStartGym, askCoach, profile, gymCustom }), /* @__PURE__ */ React.createElement(Card, { C, style: { background: wp.pct >= 80 ? C.accentBg : C.card, border: `1px solid ${wp.pct >= 80 ? C.accentBg : C.border}` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, { color: wp.pct >= 80 ? C.accentText : C.inkMuted }, "Semana en curso"), streak > 0 && /* @__PURE__ */ React.createElement(Label, { color: wp.pct >= 80 ? C.accentText : C.accent }, "\u{1F525} ", streak, " ", streak === 1 ? "SEMANA" : "SEMANAS")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "12px", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(DisplayNum, { value: `${wp.met}/${wp.required}`, size: 38, color: wp.pct >= 80 ? C.accentText : C.ink }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: wp.pct >= 80 ? C.accentText : C.inkMuted, fontWeight: 500, opacity: 0.9 } }, "sesiones planificadas")), /* @__PURE__ */ React.createElement("div", { style: { height: "8px", background: wp.pct >= 80 ? "rgba(0,0,0,0.08)" : C.surface, borderRadius: "4px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { width: `${Math.min(100, wp.pct)}%`, height: "100%", background: wp.pct >= 80 ? C.accent : C.ink, transition: "width 0.4s" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: wp.pct >= 80 ? C.accentText : C.inkMuted, marginTop: "8px", fontWeight: 500 } }, wp.pct >= 100 ? "\u2713 Semana completa" : wp.pct >= 80 ? "\u2713 Semana cumplida (80%+)" : streak > 0 ? `Faltan ${Math.max(0, Math.ceil(wp.required * 0.8) - wp.met)} para mantener la racha` : "Cumple 80% de la semana para arrancar tu racha"), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "14px", paddingTop: "14px", borderTop: `1px solid ${wp.pct >= 80 ? "rgba(0,0,0,0.08)" : C.border}` } }, WEEK_QUOTA.map((q) => {
+  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "14px" } }, /* @__PURE__ */ React.createElement("div", { className: "fade-in", style: { marginBottom: "2px" } }, /* @__PURE__ */ React.createElement(Label, null, (/* @__PURE__ */ new Date()).toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "28px", color: C.ink, marginTop: "4px", lineHeight: 1 } }, greeting.toUpperCase())), /* @__PURE__ */ React.createElement(TodayCard, { C, plan, onStartGym, askCoach, profile, gymCustom, ritmos }), /* @__PURE__ */ React.createElement(Card, { C, style: { background: wp.pct >= 80 ? C.accentBg : C.card, border: `1px solid ${wp.pct >= 80 ? C.accentBg : C.border}` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, { color: wp.pct >= 80 ? C.accentText : C.inkMuted }, "Semana en curso"), streak > 0 && /* @__PURE__ */ React.createElement(Label, { color: wp.pct >= 80 ? C.accentText : C.accent }, "\u{1F525} ", streak, " ", streak === 1 ? "SEMANA" : "SEMANAS")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: "12px", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(DisplayNum, { value: `${wp.met}/${wp.required}`, size: 38, color: wp.pct >= 80 ? C.accentText : C.ink }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: wp.pct >= 80 ? C.accentText : C.inkMuted, fontWeight: 500, opacity: 0.9 } }, "sesiones planificadas")), /* @__PURE__ */ React.createElement("div", { style: { height: "8px", background: wp.pct >= 80 ? "rgba(0,0,0,0.08)" : C.surface, borderRadius: "4px", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { width: `${Math.min(100, wp.pct)}%`, height: "100%", background: wp.pct >= 80 ? C.accent : C.ink, transition: "width 0.4s" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: wp.pct >= 80 ? C.accentText : C.inkMuted, marginTop: "8px", fontWeight: 500 } }, wp.pct >= 100 ? "\u2713 Semana completa" : wp.pct >= 80 ? "\u2713 Semana cumplida (80%+)" : streak > 0 ? `Faltan ${Math.max(0, Math.ceil(wp.required * 0.8) - wp.met)} para mantener la racha` : "Cumple 80% de la semana para arrancar tu racha"), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "14px", paddingTop: "14px", borderTop: `1px solid ${wp.pct >= 80 ? "rgba(0,0,0,0.08)" : C.border}` } }, WEEK_QUOTA.map((q) => {
     const hecho = wp.done[q.id];
     return /* @__PURE__ */ React.createElement("div", { key: q.id, style: { display: "flex", alignItems: "center", gap: "9px", padding: "4px 0" } }, /* @__PURE__ */ React.createElement("div", { style: { width: "14px", height: "14px", flexShrink: 0, borderRadius: "4px", background: hecho ? C.success : "transparent", border: `1.5px solid ${hecho ? C.success : C.borderStrong}`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "9px", fontWeight: 700 } }, hecho ? "\u2713" : ""), /* @__PURE__ */ React.createElement("span", { style: { flex: 1, fontSize: "12px", color: hecho ? C.inkMuted : C.ink, fontWeight: 500, textDecoration: hecho ? "line-through" : "none" } }, q.label), hecho && /* @__PURE__ */ React.createElement("span", { style: { fontSize: "10px", color: C.inkFaint, fontWeight: 600 } }, formatDate(hecho)));
   }))), marathon && /* @__PURE__ */ React.createElement(MarathonCard, { C, goal: marathon, weekKm: weekKmRun, askCoach, roadmap }), /* @__PURE__ */ React.createElement(LoadCard, { C, acwr, askCoach }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, null, "Pr\xF3ximos 7 d\xEDas")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "4px", margin: "0 -4px", padding: "0 4px 4px" } }, upcoming7.map((d) => /* @__PURE__ */ React.createElement(DayChip, { key: d.date, d, C })))), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "14px" } }, /* @__PURE__ */ React.createElement(Label, null, "Estado de hoy"), /* @__PURE__ */ React.createElement(Label, { color: hasCheckinToday ? C.success : C.inkFaint }, hasCheckinToday ? "\u2713 Registrado" : "Pendiente")), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" } }, /* @__PURE__ */ React.createElement(StatMini, { label: "Energ\xEDa", value: latest?.energy ?? "\u2014", C }), /* @__PURE__ */ React.createElement(StatMini, { label: "Sue\xF1o", value: latest?.sleep ?? "\u2014", C }), /* @__PURE__ */ React.createElement(StatMini, { label: "Tibia", value: latest?.painTibia ?? "\u2014", C, warn: (latest?.painTibia ?? 0) >= 4 }), /* @__PURE__ */ React.createElement(StatMini, { label: "Prehab", value: `${prehabPct}%`, C, good: prehabPct >= 60 })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px", marginTop: "14px" } }, /* @__PURE__ */ React.createElement(GhostButton, { onClick: () => setShowCheckin(!showCheckin), C, style: { flex: 1 } }, showCheckin ? "Cerrar" : "Check-in"), /* @__PURE__ */ React.createElement(GhostButton, { onClick: () => setShowSession(!showSession), C, style: { flex: 1 } }, showSession ? "Cerrar" : "+ Sesi\xF3n")), showCheckin && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "14px", paddingTop: "14px", borderTop: `1px solid ${C.border}` } }, /* @__PURE__ */ React.createElement(CheckinForm, { C, existing: hasCheckinToday ? latest : null, onSave: async (c) => {
@@ -1790,7 +1874,7 @@ function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, str
   }, date: todayISO() })), showSession && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "14px", paddingTop: "14px", borderTop: `1px solid ${C.border}` } }, /* @__PURE__ */ React.createElement(SessionForm, { C, defaultDate: todayISO(), onSubmit: async (s) => {
     await onAddSession(s);
     setShowSession(false);
-  } }))), raceGoal && /* @__PURE__ */ React.createElement(RunningCard, { C, raceGoal, weekKm: weekKmRun, weeklyTarget: marathon?.weeklyKmTarget || 40, askCoach }), /* @__PURE__ */ React.createElement(MountainCard, { C, sessions, askCoach }), /* @__PURE__ */ React.createElement(FootballCard, { C, events, sessions, askCoach }), /* @__PURE__ */ React.createElement(TreadmillCard, { C, askCoach }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, null, "Gimnasio"), /* @__PURE__ */ React.createElement(Label, { color: C.inkMuted }, sessions.filter((s) => s.type === "gym" && daysAgo(s.date) <= 7).length, " ESTA SEMANA")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "8px" } }, Object.values(GYM_TEMPLATES).filter((tpl) => !String(tpl.id).startsWith("plyo_")).map((tpl) => {
+  } }))), raceGoal && /* @__PURE__ */ React.createElement(RunningCard, { C, raceGoal, weekKm: weekKmRun, weeklyTarget: marathon?.weeklyKmTarget || 40, askCoach }), ritmos && /* @__PURE__ */ React.createElement(RitmosCard, { C, ritmos }), /* @__PURE__ */ React.createElement(MountainCard, { C, sessions, askCoach }), /* @__PURE__ */ React.createElement(FootballCard, { C, events, sessions, askCoach }), /* @__PURE__ */ React.createElement(TreadmillCard, { C, askCoach }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, null, "Gimnasio"), /* @__PURE__ */ React.createElement(Label, { color: C.inkMuted }, sessions.filter((s) => s.type === "gym" && daysAgo(s.date) <= 7).length, " ESTA SEMANA")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "8px" } }, Object.values(GYM_TEMPLATES).filter((tpl) => !String(tpl.id).startsWith("plyo_")).map((tpl) => {
     const last = sessions.find((s) => s.type === "gym" && s.gymTemplate === tpl.id);
     const isToday = plan.type === "default" && plan.training.type === "gym" && plan.training.gymId === tpl.id;
     const lista = ejerciciosDe(tpl.id, gymCustom);
@@ -1843,13 +1927,14 @@ function HUD({ C, profile, goals, events, sessions, checkins, exercisesDone, str
       fontSize: "12px",
       cursor: "pointer"
     } }, /* @__PURE__ */ React.createElement("div", { style: { width: "14px", height: "14px", flexShrink: 0, marginTop: "2px", background: done ? C.accent : "transparent", border: `1.5px solid ${done ? C.accent : C.borderStrong}`, borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "10px" } }, done ? "\u2713" : ""), /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 500, lineHeight: 1.25 } }, ex.name), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "14px", color: done ? C.accentText : C.accent, marginTop: "3px", letterSpacing: "0.03em" } }, ex.sets)));
-  }))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", margin: "8px 0 4px", color: C.inkFaint, fontFamily: FONT_MONO, fontSize: "10px", letterSpacing: "0.1em" } }, "coach \xB7 v6.5 \xB7 30 sep"));
+  }))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", margin: "8px 0 4px", color: C.inkFaint, fontFamily: FONT_MONO, fontSize: "10px", letterSpacing: "0.1em" } }, "coach \xB7 v6.6 \xB7 30 sep"));
 }
 function StatMini({ label, value, C, warn, good }) {
   const color = warn ? C.danger : good ? C.success : C.ink;
   return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(DisplayNum, { value, size: 22, color }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.inkMuted, marginTop: "4px", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 500 } }, label));
 }
-function TodayCard({ C, plan, onStartGym, askCoach, profile, gymCustom }) {
+function TodayCard({ C, plan, onStartGym, askCoach, profile, gymCustom, ritmos }) {
+  let ritmosSesion = null;
   let kicker, title, subtitle, hint, cta, background, textColor, kickerColor, gymTemplate = null, showAccent = false;
   if (plan.type === "event") {
     kicker = `EVENTO \xB7 ${EVENT_TYPES[plan.event.type].label.toUpperCase()}`;
@@ -1886,7 +1971,8 @@ function TodayCard({ C, plan, onStartGym, askCoach, profile, gymCustom }) {
       showAccent = true;
     } else if (t.type === "run-long") {
       kicker = "RUNNING \xB7 LONG RUN";
-      title = "DOMINGO LARGO";
+      title = "LONG RUN";
+      if (ritmos) ritmosSesion = ritmos.zonas.filter((z) => z.id === "E");
       subtitle = "PILAR DE LA MARAT\xD3N";
       hint = t.hint;
       background = C.accentBg;
@@ -1894,6 +1980,7 @@ function TodayCard({ C, plan, onStartGym, askCoach, profile, gymCustom }) {
       kickerColor = C.accentText;
       cta = { label: "Pedir plan al coach", action: () => askCoach("Dame el plan de long run de hoy.") };
     } else if (t.type === "run-quality") {
+      if (ritmos) ritmosSesion = ritmos.zonas.filter((z) => z.id === "T" || z.id === "I");
       kicker = "RUNNING \xB7 CALIDAD";
       title = "SESI\xD3N INTENSA";
       subtitle = "TEMPO \xB7 SERIES \xB7 FARTLEK";
@@ -1913,7 +2000,7 @@ function TodayCard({ C, plan, onStartGym, askCoach, profile, gymCustom }) {
       cta = { label: "Ver opciones", action: () => askCoach("\xBFQu\xE9 me recomiendas hoy? Es d\xEDa de descanso.") };
     }
   }
-  return /* @__PURE__ */ React.createElement("div", { className: "fade-in", style: { background, borderRadius: "18px", padding: "22px 20px", border: background === C.card || background === C.surface ? `1px solid ${C.border}` : "none", overflow: "hidden", position: "relative" } }, showAccent && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: 0, right: 0, width: "80px", height: "80px", background: C.accent, borderRadius: "0 18px 0 100%", opacity: 0.15 } }), /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: kickerColor, letterSpacing: "0.12em", fontWeight: 700, marginBottom: "10px" } }, kicker), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "38px", color: textColor, lineHeight: 0.95, marginBottom: "6px" } }, title), subtitle && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: textColor, opacity: 0.7, marginBottom: hint || gymTemplate ? "14px" : "18px", letterSpacing: "0.08em", fontWeight: 500 } }, subtitle), hint && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: textColor, opacity: 0.85, marginBottom: "16px", lineHeight: 1.5 } }, hint), plan.why && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: textColor, opacity: 0.6, marginBottom: "14px", lineHeight: 1.45, fontStyle: "italic" } }, "Por qu\xE9: ", plan.why, "."), gymTemplate && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "16px", padding: "12px 14px", background: "rgba(255,255,255,0.06)", borderRadius: "10px" } }, gymTemplate.exercises.slice(0, 4).map((ex, i) => /* @__PURE__ */ React.createElement("div", { key: ex.id, style: { fontSize: "12px", color: textColor, opacity: 0.9, padding: "3px 0", display: "flex", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", null, ex.name), /* @__PURE__ */ React.createElement("span", { style: { color: C.accent, fontWeight: 700, fontFamily: FONT_DISPLAY, fontSize: "13px", letterSpacing: "0.03em" } }, ex.sets, "\xD7", ex.reps))), gymTemplate.exercises.length > 4 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: textColor, opacity: 0.6, marginTop: "6px", textAlign: "center" } }, "+ ", gymTemplate.exercises.length - 4, " ejercicios m\xE1s")), cta.accent ? /* @__PURE__ */ React.createElement("button", { onClick: cta.action, style: { padding: "14px", background: C.accent, color: "#FFFFFF", border: "none", borderRadius: "10px", fontFamily: FONT_DISPLAY, fontSize: "15px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", cursor: "pointer", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" } }, cta.label, " \u25B8") : /* @__PURE__ */ React.createElement("button", { onClick: cta.action, style: { padding: "14px", background: background === C.ink ? "#FFFFFF" : C.ink, color: background === C.ink ? C.ink : C.bg, border: "none", borderRadius: "10px", fontFamily: FONT_DISPLAY, fontSize: "15px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", cursor: "pointer", width: "100%" } }, cta.label, " \u25B8")));
+  return /* @__PURE__ */ React.createElement("div", { className: "fade-in", style: { background, borderRadius: "18px", padding: "22px 20px", border: background === C.card || background === C.surface ? `1px solid ${C.border}` : "none", overflow: "hidden", position: "relative" } }, showAccent && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: 0, right: 0, width: "80px", height: "80px", background: C.accent, borderRadius: "0 18px 0 100%", opacity: 0.15 } }), /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: kickerColor, letterSpacing: "0.12em", fontWeight: 700, marginBottom: "10px" } }, kicker), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "38px", color: textColor, lineHeight: 0.95, marginBottom: "6px" } }, title), subtitle && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: textColor, opacity: 0.7, marginBottom: hint || gymTemplate ? "14px" : "18px", letterSpacing: "0.08em", fontWeight: 500 } }, subtitle), hint && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: textColor, opacity: 0.85, marginBottom: "16px", lineHeight: 1.5 } }, hint), plan.why && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: textColor, opacity: 0.6, marginBottom: "14px", lineHeight: 1.45, fontStyle: "italic" } }, "Por qu\xE9: ", plan.why, "."), gymTemplate && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "16px", padding: "12px 14px", background: "rgba(255,255,255,0.06)", borderRadius: "10px" } }, gymTemplate.exercises.slice(0, 4).map((ex, i) => /* @__PURE__ */ React.createElement("div", { key: ex.id, style: { fontSize: "12px", color: textColor, opacity: 0.9, padding: "3px 0", display: "flex", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("span", null, ex.name), /* @__PURE__ */ React.createElement("span", { style: { color: C.accent, fontWeight: 700, fontFamily: FONT_DISPLAY, fontSize: "13px", letterSpacing: "0.03em" } }, ex.sets, "\xD7", ex.reps))), gymTemplate.exercises.length > 4 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: textColor, opacity: 0.6, marginTop: "6px", textAlign: "center" } }, "+ ", gymTemplate.exercises.length - 4, " ejercicios m\xE1s")), ritmosSesion && ritmosSesion.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "16px", padding: "12px 14px", background: "rgba(255,255,255,0.55)", borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: textColor, opacity: 0.6, letterSpacing: "0.1em", fontWeight: 700, marginBottom: "6px" } }, "TUS RITMOS PARA HOY"), ritmosSesion.map((z) => /* @__PURE__ */ React.createElement("div", { key: z.id, style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "3px 0", gap: "8px" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "12px", color: textColor, fontWeight: 600 } }, z.nombre), /* @__PURE__ */ React.createElement("span", { style: { textAlign: "right" } }, /* @__PURE__ */ React.createElement("span", { className: "display", style: { fontSize: "17px", color: textColor } }, z.rapido === z.lento ? fmtRitmo(z.rapido) : `${fmtRitmo(z.rapido)}\u2013${fmtRitmo(z.lento)}`), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "11px", color: textColor, opacity: 0.6, marginLeft: "6px" } }, "/km \xB7 ", z.kmhRapido === z.kmhLento ? z.kmhRapido : `${z.kmhLento}\u2013${z.kmhRapido}`, " km/h"))))), cta.accent ? /* @__PURE__ */ React.createElement("button", { onClick: cta.action, style: { padding: "14px", background: C.accent, color: "#FFFFFF", border: "none", borderRadius: "10px", fontFamily: FONT_DISPLAY, fontSize: "15px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", cursor: "pointer", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" } }, cta.label, " \u25B8") : /* @__PURE__ */ React.createElement("button", { onClick: cta.action, style: { padding: "14px", background: background === C.ink ? "#FFFFFF" : C.ink, color: background === C.ink ? C.ink : C.bg, border: "none", borderRadius: "10px", fontFamily: FONT_DISPLAY, fontSize: "15px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", cursor: "pointer", width: "100%" } }, cta.label, " \u25B8")));
 }
 function DayChip({ d, C }) {
   const hasEvent = d.events.length > 0;
@@ -1987,6 +2074,23 @@ function RunningCard({ C, raceGoal, weekKm, weeklyTarget, askCoach }) {
   const target = raceGoal?.targetTime || "45:00";
   const gap = timeToSec(current) - timeToSec(target);
   return /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "14px" } }, /* @__PURE__ */ React.createElement(Label, null, "Running \xB7 10K"), gap > 0 && /* @__PURE__ */ React.createElement(Label, { color: C.danger }, "BRECHA ", secToTime(gap))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "16px", alignItems: "baseline", marginBottom: "14px" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(DisplayNum, { value: current, size: 36, color: C.ink }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.inkMuted, letterSpacing: "0.1em", fontWeight: 600, marginTop: "4px" } }, "ACTUAL")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "20px", color: C.inkFaint, alignSelf: "center" } }, "\u2192"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(DisplayNum, { value: target, size: 36, color: C.accent }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.accentText, letterSpacing: "0.1em", fontWeight: 600, marginTop: "4px" } }, "OBJETIVO"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "8px" } }, /* @__PURE__ */ React.createElement(GhostButton, { onClick: () => askCoach(`Plan para bajar mi 10K de ${current} a ${target}.`), C, style: { flex: 1 } }, "Plan sub-45"), /* @__PURE__ */ React.createElement(GhostButton, { onClick: () => askCoach("\xBFQu\xE9 sesi\xF3n de running me toca hoy?"), C, style: { flex: 1 } }, "Sesi\xF3n hoy")));
+}
+function RitmosCard({ C, ritmos }) {
+  const [abierta, setAbierta] = useState(false);
+  const [vista, setVista] = useState("ritmo");
+  const brecha = ritmos.vdotObjetivo ? ritmos.vdotObjetivo - ritmos.vdot : null;
+  const COLOR = { E: C.success, M: C.accent, T: C.warning, I: C.danger, R: C.ink };
+  return /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "12px" } }, /* @__PURE__ */ React.createElement(Label, null, "Tus ritmos"), /* @__PURE__ */ React.createElement(Label, { color: C.accent }, "VDOT ", ritmos.vdot.toFixed(1))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "6px", marginBottom: "12px" } }, [["ritmo", "min/km"], ["cinta", "Cinta km/h"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, onClick: () => setVista(k), style: {
+    padding: "6px 12px",
+    borderRadius: "100px",
+    cursor: "pointer",
+    fontFamily: FONT_BODY,
+    fontSize: "12px",
+    fontWeight: 500,
+    border: `1px solid ${vista === k ? C.ink : C.border}`,
+    background: vista === k ? C.ink : "transparent",
+    color: vista === k ? C.bg : C.inkDim
+  } }, l))), ritmos.zonas.map((z) => /* @__PURE__ */ React.createElement("div", { key: z.id, style: { display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: `1px solid ${C.border}` } }, /* @__PURE__ */ React.createElement("div", { style: { width: "4px", alignSelf: "stretch", background: COLOR[z.id], borderRadius: "2px" } }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "13px", color: C.ink, fontWeight: 600 } }, z.nombre), abierta && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "2px", lineHeight: 1.4 } }, z.uso)), /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "18px", color: C.ink, flexShrink: 0, textAlign: "right" } }, vista === "ritmo" ? z.rapido === z.lento ? fmtRitmo(z.rapido) : `${fmtRitmo(z.rapido)}\u2013${fmtRitmo(z.lento)}` : z.kmhRapido === z.kmhLento ? `${z.kmhRapido}` : `${z.kmhLento}\u2013${z.kmhRapido}`))), /* @__PURE__ */ React.createElement("button", { onClick: () => setAbierta(!abierta), style: { ...miniAction(C.accent), marginTop: "10px" } }, abierta ? "OCULTAR DETALLE" : "PARA QU\xC9 SIRVE CADA UNO"), abierta && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "12px", padding: "12px 14px", background: C.surface, borderRadius: "10px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.inkMuted, letterSpacing: "0.08em", fontWeight: 700, marginBottom: "8px" } }, "TIEMPOS EQUIVALENTES A TU FORMA ACTUAL"), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" } }, ritmos.predicciones.map((p) => /* @__PURE__ */ React.createElement("div", { key: p.dist }, /* @__PURE__ */ React.createElement("div", { className: "display", style: { fontSize: "15px", color: C.ink } }, fmtTiempo(p.seg)), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.inkMuted, fontWeight: 600 } }, p.dist)))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "11px", color: C.inkMuted, marginTop: "8px", lineHeight: 1.45 } }, "Son equivalencias, no promesas: el marat\xF3n exige adem\xE1s el volumen de entrenamiento espec\xEDfico.")), brecha !== null && brecha > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "12px", fontSize: "12px", color: C.inkDim, lineHeight: 1.5 } }, "Para ", ritmos.objetivo, " necesitas VDOT ", ritmos.vdotObjetivo.toFixed(1), ": te faltan ", /* @__PURE__ */ React.createElement("strong", { style: { color: C.ink } }, brecha.toFixed(1), " puntos"), "."), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "10px", color: C.inkFaint, marginTop: "10px", lineHeight: 1.45 } }, "Calculado con la f\xF3rmula de Daniels desde tu marca de ", ritmos.marca, ". Se recalcula cuando actualizas tu marca en PLAN \u2192 Objetivos."));
 }
 function MountainCard({ C, sessions, askCoach }) {
   const treks = sessions.filter((s) => s.type === "trekking");
@@ -2334,6 +2438,28 @@ CUPO SEMANAL (semana del ${monday}). El plan NO es fijo por d\xEDa: se reparte s
         ctx += `  \xB7 ${d} (${DAY_FULL[dowOf(d)]}): ${desc}
 `;
       });
+    }
+    const rt = perfilDeRitmo(goals);
+    if (rt) {
+      ctx += `
+ZONAS DE RITMO (Daniels, VDOT ${rt.vdot.toFixed(1)} desde su ${rt.distancia === 1e4 ? "10K" : "marca"} de ${rt.marca}). Usa exactamente estos valores:
+`;
+      rt.zonas.forEach((z) => {
+        const r = z.rapido === z.lento ? fmtRitmo(z.rapido) : `${fmtRitmo(z.rapido)}\u2013${fmtRitmo(z.lento)}`;
+        const k = z.kmhRapido === z.kmhLento ? `${z.kmhRapido}` : `${z.kmhLento}\u2013${z.kmhRapido}`;
+        ctx += `- ${z.nombre}: ${r} /km (cinta ${k} km/h) \u2014 ${z.uso}
+`;
+      });
+      ctx += `- Ritmo de carrera de 10K actual: ${fmtRitmo(rt.predicciones[1].seg / 10)} /km (${kmh(1e4 / rt.predicciones[1].seg * 60)} km/h)
+`;
+      ctx += `Tiempos equivalentes a su forma actual: ${rt.predicciones.map((p) => `${p.dist} ${fmtTiempo(p.seg)}`).join(", ")}.
+`;
+      if (rt.vdotObjetivo) ctx += `Su objetivo ${rt.objetivo} exige VDOT ${rt.vdotObjetivo.toFixed(1)}: brecha de ${(rt.vdotObjetivo - rt.vdot).toFixed(1)} puntos. S\xE9 realista con los plazos.
+`;
+    } else {
+      ctx += `
+ZONAS DE RITMO: sin marca registrada. P\xEDdele que la registre en PLAN \u2192 Objetivos antes de prescribir ritmos.
+`;
     }
     const acwr = calcACWR(sessions);
     if (acwr.listo) {
@@ -3201,7 +3327,7 @@ function ProfileModal({ C, profile, sessions, achievements, onSave, onClose }) {
   } }, a.name)))), /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: save, style: { width: "100%", marginTop: "8px" } }, "Guardar cambios")), STANDALONE && /* @__PURE__ */ React.createElement(ApiKeyCard, { C }), STANDALONE && /* @__PURE__ */ React.createElement(Card, { C, style: { marginBottom: "14px" } }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: "10px" } }, "Actualizar la app"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkDim, lineHeight: 1.5, marginBottom: "12px" } }, "Cuando subas una versi\xF3n nueva, usa este bot\xF3n. ", /* @__PURE__ */ React.createElement("strong", { style: { color: C.danger } }, "Nunca elimines el \xEDcono de la pantalla de inicio"), ": en iPhone eso borra todos tus datos."), /* @__PURE__ */ React.createElement(AccentButton, { C, onClick: () => {
     const url = window.location.origin + window.location.pathname + "?v=" + Date.now();
     window.location.replace(url);
-  }, style: { width: "100%" } }, "Buscar actualizaci\xF3n")), /* @__PURE__ */ React.createElement(StorageDiag, { C }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: "10px" } }, "Sobre"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkDim, lineHeight: 1.5 } }, "Coach personal \xB7 v6.5 (30 sep 2026)", /* @__PURE__ */ React.createElement("br", null), "Todos tus datos se guardan localmente y son solo tuyos."))));
+  }, style: { width: "100%" } }, "Buscar actualizaci\xF3n")), /* @__PURE__ */ React.createElement(StorageDiag, { C }), /* @__PURE__ */ React.createElement(Card, { C }, /* @__PURE__ */ React.createElement(Label, { style: { marginBottom: "10px" } }, "Sobre"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "12px", color: C.inkDim, lineHeight: 1.5 } }, "Coach personal \xB7 v6.6 (30 sep 2026)", /* @__PURE__ */ React.createElement("br", null), "Todos tus datos se guardan localmente y son solo tuyos."))));
 }
 function ApiKeyCard({ C }) {
   const [key, setKey] = useState(getApiKey());
